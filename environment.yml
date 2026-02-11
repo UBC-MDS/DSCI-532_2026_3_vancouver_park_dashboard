@@ -1,0 +1,10 @@
+name: park
+channels:
+  - conda-forge
+dependencies:
+  - numpy
+  - python
+  - pandas
+  - jupyterlab
+  - matplotlib
+  - shiny
