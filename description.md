@@ -1,0 +1,1 @@
+Our dashboard is public facing with the goal of enabling users to explore details of all registered parks in Vancouver. By interacting with our dashboard, users can understand the geographical distribution, available facilities, and other detailed information of each park selected upon users' interests.
