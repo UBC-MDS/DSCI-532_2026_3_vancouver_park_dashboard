@@ -2,9 +2,9 @@
 
 **Motivation and Purpose**
 
-People in Vancouver look for parks in everyday situations, not just for “green space.” Someone might be walking around downtown and want the nearest park to sit for a bit, or a family might want a park with washrooms, or a group might be planning a small birthday and wants a park that’s large enough compared to other options. Right now, that kind of search usually means jumping between maps and long lists, and it’s not always obvious which park meets a specific need. This project is meant to make that process easier for the general public by letting people search parks based on simple requirements and immediately see the best options.
+People in Vancouver look for parks in everyday situations, not just for “green space”. Someone might be walking around downtown and want the nearest park to sit for a bit, or a family might want a park with washrooms, or a group might be planning a small birthday and wants a park that’s large enough compared to other options. Right now, that kind of search usually means jumping between maps and long lists, and it’s not always obvious which park meets a specific need. This project is meant to make that process easier for the general public by letting people search parks based on simple requirements and immediately see the best options.
 
-For this dashboard, the goal is straightforward: help users find parks and compare them quickly. The dashboard will focus on practical questions a normal person would ask, such as “which park is closest,” “which parks have washrooms,” “which ones are accessible,” and “how big is this park compared to others.” Instead of making users interpret raw tables, the dashboard will turn the data into something visual and interactive so decisions can be made in a few clicks.
+For this dashboard, the goal is straightforward: help users find parks and compare them quickly. The dashboard will focus on practical questions a normal person would ask, such as “which park is closest”, “which parks have washrooms”, “which ones are accessible”, and “how big is this park compared to others”. Instead of making users interpret raw tables or maps, the dashboard will turn the data into something visual and interactive so decisions can be made in a few clicks.
 
 **Description of Data**
 
@@ -14,7 +14,7 @@ We will be visualizing the City of Vancouver Parks dataset, which contains 218 p
 	•	Park size (Hectare)
 	•	Amenity availability (Y/N flags) (Washrooms, Facilities, SpecialFeatures, Accessibility)
 
-As part of our EDA and data cleaning, we will remove fields that do not add value for a public-facing park search experience: ParkID (internal identifier), Official and Advisories (not informative since they have a single value), and EWStreet and NSStreet (not needed since street and neighbourhood fields already provide enough location context). We will also combine StreetNumber and StreetName into a single Address field to make searching and reading park locations easier for users.
+As part of our EDA and data cleaning, we will remove fields that do not add value for a public facing park search experience: ParkID (internal identifier), Official and Advisories (not informative since they have a single value), and EWStreet and NSStreet (not needed since street and neighbourhood fields already provide enough location context). We will also combine StreetNumber and StreetName into a single Address field to make searching and reading park locations easier for users.
 
 **Researching Components**
 
