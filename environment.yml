@@ -8,3 +8,5 @@ dependencies:
   - jupyterlab
   - matplotlib
   - shiny
+  - shinywidgets
+  - plotly
