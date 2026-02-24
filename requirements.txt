@@ -1,0 +1,7 @@
+matplotlib==3.10.8
+numpy==2.4.2
+pandas==3.0.0
+plotly==6.5.2
+shiny==1.4.0
+shinywidgets==0.7.1
+uvicorn==0.40.0
