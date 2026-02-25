@@ -1,80 +1,89 @@
-from shiny.express import ui, input, render
+from shiny import App, ui, render
 from shinywidgets import render_widget, output_widget
 import pandas as pd
 import plotly.express as px
 
-ui.page_opts(title="Vancouver Park Dashboard", fillable=True)
+app_ui = ui.page_sidebar(
+    # Sidebar with filters
+    ui.sidebar(
+        # Search input for parks
+        ui.input_text("search", "Search Parks", placeholder="Enter keywords..."),
 
-# create the side bar with filters
-with ui.sidebar(title="Filters"):
+        # Dropdown for neighbourhood selection
+        ui.input_selectize(
+            "neighbourhood", 
+            "Neighbourhood", 
+            choices=["Downtown", "Kitsilano"],
+            multiple=True
+        ),
+        # Slider for park size
+        ui.input_slider("size", "Hectair", 0, 40, [0, 40]),
 
-    # Search input for parks
-    ui.input_text("search", "Search Parks", placeholder="Enter keywords...")
+        # Checkbox group for facilities
+        ui.input_checkbox_group(
+            "facilities",
+            "Select Facilities",
+            {
+                "official": "Official",
+                "washroom": "Washrooms",
+                "facility": "Facility",
+            },
+            selected=["official", "washroom", "facility"]
+        ),
 
-    # Dropdown for neighbourhood selection
-    ui.input_selectize(
-        "neighbourhood", 
-        "Neighbourhood", 
-        choices=["Downtown", "Kitsilano"],
-        multiple=True
-    )
+        # Dropdown for specific park selection
+        ui.input_selectize(
+            "specific_park", 
+            "Search Specific Park", 
+            choices=["Stanley Park", "Queen Elizabeth Park", "Kitsilano Beach"]
+        ),
 
-    # Slider for park size
-    ui.input_slider("size", "Hectair", 0, 40, [0, 40])
+        ui.hr(),
+        ui.markdown("Adjust filters to update the charts."),
+        title="Filters"
+    ),
 
-    # Checkbox group for facilities
-    ui.input_checkbox_group(
-        "facilities",
-        "Select Facilities",
-        {
-            "official": "Official",
-            "washroom": "Washrooms",
-            "facility": "Facility",
-        },
-        selected=["official", "washroom", "facility"] # Default selected options
-    )
- 
-    # Dropdown for specific park selection
-    ui.input_selectize(
-        "specific_park", 
-        "Search Specific Park", 
-        choices=["Stanley Park", "Queen Elizabeth Park", "Kitsilano Beach"]
-    )
-
-    ui.hr()
-
-    # info text
-    ui.markdown("Adjust filters to update the charts.")
-
-# create the main content area with charts and tables
-with ui.card(fill=True):
-
-    # header for the card
-    ui.card_header("Park Overview")
-
-    # layout for the charts and tables
-    with ui.layout_column_wrap(width=1/2, height=1/2, fill=True):
-
-        # table of data
-        with ui.card():
-            ui.card_header("Table of data")
-            @render.table
-            def table():
-                return pd.DataFrame({
-                    "Name": ["Stanley Park"], 
-                    "Neighbourhood": ["Downtown"], 
-                    "Address" : ["1234 Park Ave"], 
-                    "Email": ["info@stanley-park.com"]
-                    })
-        # pie chart for washroom availability
-        with ui.card():
-            ui.card_header("Washroom availability")
-            ui.markdown("Washroom availability content pie chart.")
-
-    # Map for park location
-    with ui.card(fill=True):
-        ui.card_header("Map")
-        ui.markdown("Map will be here, with the selected parks location.")
-
+    # Main Content Area
+    ui.card(
+        ui.card_header("Park Overview"),
         
+        # Top level, Table and Pie Chart
+        # We use height=350 to ensure the top row doesn't crowd the map
+        ui.layout_column_wrap(
+            ui.card(
+                ui.card_header("Table of data"),
+                ui.output_table("table_out")
+            ),
+            ui.card(
+                ui.card_header("Washroom availability"),
+                output_widget("washroom_chart")
+            ),
+            width=1/2,
+            height=350
+        ),
+
+        # Bottom level, Map for park location
+        ui.card(
+            ui.card_header("Map"),
+            output_widget("park_map"),
+            full_screen=True
+        ),
+        fill=True
+    ),
+    title="Vancouver Park Dashboard",
+    fillable=True
+)
+
+def server(input, output, session):
     
+    @render.table
+    def table_out():
+        # example table
+        return pd.DataFrame({
+            "Name": ["Stanley Park"], 
+            "Neighbourhood": ["Downtown"], 
+            "Address" : ["1234 Park Ave"], 
+            "Email": ["info@stanley-park.com"]
+        })
+
+app = App(app_ui, server)
