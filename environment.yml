@@ -11,3 +11,4 @@ dependencies:
   - shinywidgets
   - plotly
   - anywidget
+  - ipyleaflet
