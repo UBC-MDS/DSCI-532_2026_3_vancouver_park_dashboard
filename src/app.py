@@ -22,7 +22,9 @@ app_ui = ui.page_sidebar(
             multiple=True
         ),
         # Slider for park size
-        ui.input_slider("size", "Hectare", 0, 40, [0, 40]),
+        ui.input_slider("size", "Hectare", 
+                        parks_df['Hectare'].min(), parks_df['Hectare'].max(), 
+                        [parks_df['Hectare'].min(), parks_df['Hectare'].max()]),
 
         # Checkbox group for facilities
         ui.input_checkbox_group(
