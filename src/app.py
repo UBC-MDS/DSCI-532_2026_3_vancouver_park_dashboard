@@ -22,7 +22,9 @@ app_ui = ui.page_sidebar(
             multiple=True
         ),
         # Slider for park size
-        ui.input_slider("size", "Hectare", 0, 40, [0, 40]),
+        ui.input_slider("size", "Hectare", 
+                        parks_df['Hectare'].min(), parks_df['Hectare'].max(), 
+                        [parks_df['Hectare'].min(), parks_df['Hectare'].max()]),
 
         # Checkbox group for facilities
         ui.input_checkbox_group(
@@ -97,9 +99,12 @@ def server(input, output, session):
         if input.neighbourhood():
             filtered_df = filtered_df[filtered_df['NeighbourhoodName'].isin(input.neighbourhood())]
         
-        # filters the parks data fram for hectare slider
-        size_range = input.size()
-        filtered_df = filtered_df[(filtered_df['Hectare'] >= size_range[0]) & (filtered_df['Hectare'] <= size_range[1])]
+        # filters the parks data frame whose Hectare size is within slider range
+        min_size, max_size = input.size()
+        filtered_df = filtered_df[
+            (filtered_df['Hectare'] >= min_size) &
+            (filtered_df['Hectare'] <= max_size)
+        ]
         
         # filters the parks data frame for facilities selection
         for facility in input.facilities():
@@ -116,6 +121,7 @@ def server(input, output, session):
             "Address" : ["1234 Park Ave"], 
             "Email": ["info@stanley-park.com"]
         })
+        
     @render_widget
     def park_map():
         df = filtered()
@@ -172,5 +178,30 @@ def server(input, output, session):
             marker.popup = popup
             m.add_layer(marker)
         return m
+    
+    @render_widget
+    def washroom_chart():
+        df = filtered()
+        
+        # count how many Y and N there are in df
+        counts = df['Washrooms'].value_counts().reset_index()
+        counts.columns = ['Washrooms', 'Count']
+        
+        # turn 'Y' to 'Yes' and 'N' to 'No'
+        counts['Washrooms'] = counts['Washrooms'].map({
+            'Y': 'Yes',
+            'N': 'No'
+        })
+        
+        # plot the pie chart
+        pie = px.pie(
+            counts, names='Washrooms', values='Count', color='Washrooms',
+            color_discrete_map={
+                "Yes": 'darkgreen',
+                "No": 'lightgreen'
+            }
+        )
+        
+        return pie
 
 app = App(app_ui, server)
