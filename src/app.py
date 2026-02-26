@@ -86,10 +86,25 @@ def server(input, output, session):
         """
         Filter once for all outputs
         """
-        # filters the parks data frame for facilities selection
+        # create a copy of the parks data frame to apply filters on
         filtered_df = parks_df.copy()
+
+        # filters the parks data frame for park name search
+        if input.search():
+            filtered_df = filtered_df[filtered_df['Name'].str.contains(input.search(), case=False, na=False)]
+
+        # filters the parks data frame for neighbourhood selection
+        if input.neighbourhood():
+            filtered_df = filtered_df[filtered_df['NeighbourhoodName'].isin(input.neighbourhood())]
+        
+        # filters the parks data fram for hectare slider
+        size_range = input.size()
+        filtered_df = filtered_df[(filtered_df['Hectare'] >= size_range[0]) & (filtered_df['Hectare'] <= size_range[1])]
+        
+        # filters the parks data frame for facilities selection
         for facility in input.facilities():
             filtered_df = filtered_df[filtered_df[facility] == 'Y']
+
         return filtered_df
     
     @render.table
@@ -108,6 +123,7 @@ def server(input, output, session):
         # Center the map roughly on Vancouver
         m = Map(center=(49.2827, -123.1207), zoom=12)
         
+        # Create a custom HTML widget to display the count of parks
         count_html = HTML(value=f"""
             <div style="
                 background: rgba(255, 255, 255, 0.8); 
