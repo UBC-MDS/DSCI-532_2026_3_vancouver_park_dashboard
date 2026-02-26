@@ -89,6 +89,14 @@ def server(input, output, session):
         filtered_df = parks_df.copy()
         for facility in input.facilities():
             filtered_df = filtered_df[filtered_df[facility] == 'Y']
+        
+        # filters the parks data frame whose Hectare size is within slider range
+        min_size, max_size = input.size()
+        filtered_df = filtered_df[
+            (filtered_df['Hectare'] >= min_size) &
+            (filtered_df['Hectare'] <= max_size)
+        ]
+        
         return filtered_df
     
     @render.table
