@@ -1,7 +1,12 @@
-from shiny import App, ui, render
+from shiny import App, ui, render, reactive
 from shinywidgets import render_widget, output_widget
 import pandas as pd
 import plotly.express as px
+from ipyleaflet import Map, Marker
+from ipyleaflet import Popup
+from ipywidgets import HTML
+
+parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
 
 app_ui = ui.page_sidebar(
     # Sidebar with filters
@@ -17,18 +22,18 @@ app_ui = ui.page_sidebar(
             multiple=True
         ),
         # Slider for park size
-        ui.input_slider("size", "Hectair", 0, 40, [0, 40]),
+        ui.input_slider("size", "Hectare", 0, 40, [0, 40]),
 
         # Checkbox group for facilities
         ui.input_checkbox_group(
             "facilities",
             "Select Facilities",
             {
-                "official": "Official",
-                "washroom": "Washrooms",
-                "facility": "Facility",
+                "Washrooms": "Washrooms",
+                "Facilities": "Facilities",
+                "SpecialFeatures": "Special Features"
             },
-            selected=["official", "washroom", "facility"]
+            selected=[]
         ),
 
         # Dropdown for specific park selection
@@ -59,7 +64,7 @@ app_ui = ui.page_sidebar(
                 output_widget("washroom_chart")
             ),
             width=1/2,
-            height=350
+            height=300
         ),
 
         # Bottom level, Map for park location
@@ -75,6 +80,16 @@ app_ui = ui.page_sidebar(
 )
 
 def server(input, output, session):
+    @reactive.calc
+    def filtered():
+        """
+        Filter once for all outputs
+        """
+        # filters the parks data frame for facilities selection
+        filtered_df = parks_df.copy()
+        for facility in input.facilities():
+            filtered_df = filtered_df[filtered_df[facility] == 'Y']
+        return filtered_df
     
     @render.table
     def table_out():
@@ -85,5 +100,40 @@ def server(input, output, session):
             "Address" : ["1234 Park Ave"], 
             "Email": ["info@stanley-park.com"]
         })
+    @render_widget
+    def park_map():
+        df = filtered()
+
+        # Center the map roughly on Vancouver
+        m = Map(center=(49.2827, -123.1207), zoom=12)
+        
+        if df.empty:
+            return m
+
+        # Add a marker for each park
+        for _, row in df.iterrows():
+            coords = row['GoogleMapDest']
+            if pd.isna(coords):
+                continue
+            
+            lat_str, lon_str = coords.split(",")
+            lat, lon = float(lat_str), float(lon_str)
+            marker = Marker(
+                location=(lat, lon),
+                draggable=False,
+            )
+            popup = Popup(
+                location=(lat, lon),
+                child=HTML(f"""
+                           <b>{row['Name']}</b><br>
+                           Neighbourhood: {row['NeighbourhoodName']}<br>
+                           Size: {row['Hectare']} ha
+                           """),
+                close_button=True,
+                auto_close=False
+                )
+            marker.popup = popup
+            m.add_layer(marker)
+        return m
 
 app = App(app_ui, server)
