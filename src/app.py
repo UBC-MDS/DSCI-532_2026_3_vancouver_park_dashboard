@@ -91,6 +91,14 @@ def server(input, output, session):
         filtered_df = parks_df.copy()
         for facility in input.facilities():
             filtered_df = filtered_df[filtered_df[facility] == 'Y']
+        
+        # filters the parks data frame whose Hectare size is within slider range
+        min_size, max_size = input.size()
+        filtered_df = filtered_df[
+            (filtered_df['Hectare'] >= min_size) &
+            (filtered_df['Hectare'] <= max_size)
+        ]
+        
         return filtered_df
     
     @render.table
@@ -102,6 +110,7 @@ def server(input, output, session):
             "Address" : ["1234 Park Ave"], 
             "Email": ["info@stanley-park.com"]
         })
+        
     @render_widget
     def park_map():
         df = filtered()
@@ -137,5 +146,30 @@ def server(input, output, session):
             marker.popup = popup
             m.add_layer(marker)
         return m
+    
+    @render_widget
+    def washroom_chart():
+        df = filtered()
+        
+        # count how many Y and N there are in df
+        counts = df['Washrooms'].value_counts().reset_index()
+        counts.columns = ['Washrooms', 'Count']
+        
+        # turn 'Y' to 'Yes' and 'N' to 'No'
+        counts['Washrooms'] = counts['Washrooms'].map({
+            'Y': 'Yes',
+            'N': 'No'
+        })
+        
+        # plot the pie chart
+        pie = px.pie(
+            counts, names='Washrooms', values='Count', color='Washrooms',
+            color_discrete_map={
+                "Yes": 'darkgreen',
+                "No": 'lightgreen'
+            }
+        )
+        
+        return pie
 
 app = App(app_ui, server)
