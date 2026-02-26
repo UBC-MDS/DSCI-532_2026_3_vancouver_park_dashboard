@@ -10,3 +10,4 @@ dependencies:
   - shiny
   - shinywidgets
   - plotly
+  - anywidget
