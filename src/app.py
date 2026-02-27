@@ -18,7 +18,7 @@ app_ui = ui.page_sidebar(
         ui.input_selectize(
             "neighbourhood", 
             "Neighbourhood", 
-            choices=["Downtown", "Kitsilano"],
+            choices=sorted(parks_df['NeighbourhoodName'].dropna().unique().tolist()),
             multiple=True
         ),
         # Slider for park size
