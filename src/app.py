@@ -2,7 +2,7 @@ from shiny import App, ui, render, reactive
 from shinywidgets import render_widget, output_widget
 import pandas as pd
 import plotly.express as px
-from ipyleaflet import Map, Marker
+from ipyleaflet import Map, Marker, WidgetControl
 from ipyleaflet import Popup
 from ipywidgets import HTML
 
@@ -67,6 +67,7 @@ app_ui = ui.page_sidebar(
             ),
             width=1/2,
             height=300
+            
         ),
 
         # Bottom level, Map for park location
@@ -87,10 +88,16 @@ def server(input, output, session):
         """
         Filter once for all outputs
         """
-        # filters the parks data frame for facilities selection
+        # create a copy of the parks data frame to apply filters on
         filtered_df = parks_df.copy()
-        for facility in input.facilities():
-            filtered_df = filtered_df[filtered_df[facility] == 'Y']
+
+        # filters the parks data frame for park name search
+        if input.search():
+            filtered_df = filtered_df[filtered_df['Name'].str.contains(input.search(), case=False, na=False)]
+
+        # filters the parks data frame for neighbourhood selection
+        if input.neighbourhood():
+            filtered_df = filtered_df[filtered_df['NeighbourhoodName'].isin(input.neighbourhood())]
         
         # filters the parks data frame whose Hectare size is within slider range
         min_size, max_size = input.size()
@@ -99,6 +106,10 @@ def server(input, output, session):
             (filtered_df['Hectare'] <= max_size)
         ]
         
+        # filters the parks data frame for facilities selection
+        for facility in input.facilities():
+            filtered_df = filtered_df[filtered_df[facility] == 'Y']
+
         return filtered_df
     
     @render.table
@@ -118,6 +129,27 @@ def server(input, output, session):
         # Center the map roughly on Vancouver
         m = Map(center=(49.2827, -123.1207), zoom=12)
         
+        # Create a custom HTML widget to display the count of parks
+        count_html = HTML(value=f"""
+            <div style="
+                background: rgba(255, 255, 255, 0.8); 
+                backdrop-filter: blur(4px);
+                padding: 10px; 
+                border-radius: 8px; 
+                border: 1px solid rgba(0,0,0,0.1);
+                text-align: center; 
+                min-width: 100px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            ">
+                <div style="font-size: 10px; color: #444; font-weight: bold; letter-spacing: 1px;">COUNT</div>
+                <div style="font-size: 24px; color: #2e7d32; font-weight: 800; line-height: 1;">{len(df)}</div>
+            </div>
+        """)
+        
+        # Add the control directly to the map object
+        m.add_control(WidgetControl(widget=count_html, position='topright'))
+
+
         if df.empty:
             return m
 
