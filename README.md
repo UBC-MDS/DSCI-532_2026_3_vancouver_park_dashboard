@@ -56,4 +56,5 @@ python -m shiny run --reload --launch-browser src/app.py
 If your browser does not open automatically, visit:
 `http://127.0.0.1:8000`
 
-
+### Link to CONTRIBUTING.md
+[https://github.com/UBC-MDS/DSCI-532_2026_3_vancouver_park_dashboard/blob/doc/CONTRIBUTING.md](https://github.com/UBC-MDS/DSCI-532_2026_3_vancouver_park_dashboard/blob/doc/CONTRIBUTING.md)
