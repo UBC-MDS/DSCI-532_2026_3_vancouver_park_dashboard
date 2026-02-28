@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - (2026-02-28)
 
 ### Added
+- Added Changelog to the repository updating everything until Tag v0.2.0
 - Added a demo GIF to the README to visually showcase dashboard functionality for new users. (PR #46)
 - Created dedicated documentation pages for both users and contributors, improving onboarding experience. (PR #46)
 - Added a reactivity diagram to illustrate how dashboard inputs and outputs are connected. (PR #44)
