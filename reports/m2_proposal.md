@@ -29,3 +29,11 @@ App Specification: The Vancouver Park Dashboard
 | `washroom_chart` | Output | `@render_widget` | `filtered_df` | #3 |
 | `park_map` | Output | `@render_widget` | `filtered_df` | #5 |
 | `count_html` | Output (top right corner of the map) | `@render_widget` | `filtered_df` | #5 |
+
+**2.4 Calculation Details**
+
+The only `@reactive.calc` element in our diagram is `filtered_df`.
+
+- `filtered_df` depends on these inputs: `search`, `neighbourhood`, `size`, `facilities`.
+- `filtered_df` performs this transformation: filters rows in the original dataframe to the selected neighborhood, size, facilities conditions, and with a name matching the string typed in the search bar.
+- `filtered_df` is consumed by these outputs: `table_out`, `washroom_chart`, `park_map`, `count_html`.
