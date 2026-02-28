@@ -8,18 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - (2026-02-28)
 
 ### Added
-- Added Changelog to the repository updating everything until Tag v0.2.0
-- Added a demo GIF to the README to visually showcase dashboard functionality for new users. (PR #46)
+- Added the changelog to document project changes up to version v0.2.0 (PR #49)
+- Added a demo GIF to the README to show the dashboard in use. (PR #46)
 - Created dedicated documentation pages for both users and contributors, improving onboarding experience. (PR #46)
-- Added a reactivity diagram to illustrate how dashboard inputs and outputs are connected. (PR #44)
+- Added a reactivity diagram showing how dashboard inputs and outputs are connected. (PR #44)
 - Added job stories to the milestone 2 proposal to better capture user needs and motivations. (PR #36)
 - Added a rendered feature comparison table to the proposal documentation. (PR #34)
 - Added a neighbourhood filter dropdown, allowing users to filter parks by neighbourhood. (PR #32)
 - Added a count widget to display the number of parks matching the current filter selection. (PR #32)
 - Added a pie chart to visualize the distribution of park facilities across the dataset. (PR #29)
-- Added map output to the dashboard, rendering filtered parks as interactive points on a map. (PR #27)
-- Added DataFrame filtering logic based on user selected facilities input. (PR #27)
-- Added `requirements.txt` file to make dependency installation straightforward for new contributors. (PR #19)
+- Added DataFrame filtering based on selected facilities. (PR #27)
+- Added a direct park search bar. (PR #27)
+- Added `requirements.txt` file for easier dependency setup. (PR #19)
 
 ### Changed
 - Removed the 'Data Source' radio button input selector filter from the dashboard (PR #27).
@@ -37,13 +37,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known Issues
 - No automated tests exist yet for the dashboard interactivity and reactive components.
-- The app has not been deployed publicly; runs only on local.
+- The app has not been deployed publicly, runs only on local.
 
 ### Reflection
-- Milestone 2 significantly expanded the dashboard's interactivity, moving from a static map skeleton to a fully filterable, multi-widget interface.
+- Milestone 2 significantly expanded the dashboard's interactivity, moving from a static map skeleton to a fully filterable, multi widget interface.
 - The conversion from `shiny.express` to `shiny` was an important early refactor that set a more stable foundation for adding subsequent features.
-- Job Stories 1, 2, and 3 implemented along with better utilization of story 3.
-- Comparing M1 sketch and M2 sketch, we tried to match our M1 mission and went on to direct M2 to focus more on user functionality, interactivity and practicality. 
+- Job Stories 1, 2, and 3 are fully implemented along with better utilization of story 3.
+- Comparing M1 sketch and M2 sketchs, we tried to match our M1 mission and went on to direct M2 to focus more on user functionality, interactivity and practicality. 
 ---
 
 ## [0.1.0] - (2026-02-14)
