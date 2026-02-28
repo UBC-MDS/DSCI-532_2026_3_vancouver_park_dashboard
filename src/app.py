@@ -38,13 +38,6 @@ app_ui = ui.page_sidebar(
             selected=[]
         ),
 
-        # Dropdown for specific park selection
-        ui.input_selectize(
-            "specific_park", 
-            "Search Specific Park", 
-            choices=["Stanley Park", "Queen Elizabeth Park", "Kitsilano Beach"]
-        ),
-
         ui.hr(),
         ui.markdown("Adjust filters to update the charts."),
         title="Filters"
