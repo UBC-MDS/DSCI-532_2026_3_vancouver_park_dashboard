@@ -18,7 +18,7 @@ app_ui = ui.page_sidebar(
         ui.input_selectize(
             "neighbourhood", 
             "Neighbourhood", 
-            choices=["Downtown", "Kitsilano"],
+            choices=sorted(parks_df['NeighbourhoodName'].dropna().unique().tolist()),
             multiple=True
         ),
         # Slider for park size
@@ -114,13 +114,15 @@ def server(input, output, session):
     
     @render.table
     def table_out():
-        # example table
-        return pd.DataFrame({
-            "Name": ["Stanley Park"], 
-            "Neighbourhood": ["Downtown"], 
-            "Address" : ["1234 Park Ave"], 
-            "Email": ["info@stanley-park.com"]
-        })
+        df = filtered()
+        
+        display_df = pd.DataFrame({
+            'Name': df['Name'],
+            'Address': df['StreetNumber'].astype(str) + ' ' + df['StreetName'],
+            'Neighbourhood': df['NeighbourhoodName'],
+            'URL': df['NeighbourhoodURL']
+            })
+        return display_df
         
     @render_widget
     def park_map():
