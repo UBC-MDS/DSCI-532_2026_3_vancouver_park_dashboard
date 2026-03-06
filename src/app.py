@@ -5,6 +5,7 @@ import plotly.express as px
 from ipyleaflet import Map, Marker, WidgetControl
 from ipyleaflet import Popup
 from ipywidgets import HTML
+from chatlas import ChatOpenAI
 
 parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
 
@@ -78,6 +79,10 @@ app_ui = ui.page_sidebar(
             "AI Assistant",
             ui.card(
                 ui.card_header("AI-Powered Park Explorer"),
+                ui.chat_ui(
+                    id="chat",
+                    messages=["**Hello!** How can I help you today?"],
+                    )
             )
         )
     ),
@@ -86,6 +91,11 @@ app_ui = ui.page_sidebar(
 )
 
 def server(input, output, session):
+    # chat_client = ChatOpenAI(
+    #     model="gpt-4.1-mini",
+    #     system_prompt="You are a helpful assistant.",
+    # )
+
     @reactive.calc
     def filtered():
         """
