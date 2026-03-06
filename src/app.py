@@ -44,32 +44,42 @@ app_ui = ui.page_sidebar(
     ),
 
     # Main Content Area
-    ui.card(
-        ui.card_header("Park Overview"),
-        
-        # Top level, Table and Pie Chart
-        # We use height=350 to ensure the top row doesn't crowd the map
-        ui.layout_column_wrap(
+    ui.navset_tab(
+        ui.nav_panel(
+            "Dashboard",
             ui.card(
-                ui.card_header("Table of data"),
-                ui.output_table("table_out")
-            ),
-            ui.card(
-                ui.card_header("Washroom availability"),
-                output_widget("washroom_chart")
-            ),
-            width=1/2,
-            height=300
-            
-        ),
+                ui.card_header("Park Overview"),
 
-        # Bottom level, Map for park location
-        ui.card(
-            ui.card_header("Map"),
-            output_widget("park_map"),
-            full_screen=True
+                # Top level, Table and Pie Chart
+                # We use height=350 to ensure the top row doesn't crowd the map
+                ui.layout_column_wrap(
+                    ui.card(
+                        ui.card_header("Table of data"),
+                        ui.output_table("table_out")
+                    ),
+                    ui.card(
+                        ui.card_header("Washroom availability"),
+                        output_widget("washroom_chart")
+                    ),
+                    width=1/2,
+                    height=300
+                ),
+
+                # Bottom level, Map for park location
+                ui.card(
+                    ui.card_header("Map"),
+                    output_widget("park_map"),
+                    full_screen=True
+                ),
+                fill=True
+            )
         ),
-        fill=True
+        ui.nav_panel(
+            "AI Assistant",
+            ui.card(
+                ui.card_header("AI-Powered Park Explorer"),
+            )
+        )
     ),
     title="Vancouver Park Dashboard",
     fillable=True
