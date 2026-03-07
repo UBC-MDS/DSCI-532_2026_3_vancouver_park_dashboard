@@ -84,13 +84,14 @@ def folium_map(df):
 
     return fmap.get_root().render()
 
-def get_vancouver_parks_info():
-    """
-    Retrieves the dataset of Vancouver parks. 
-    Use this to answer questions about park names, hectares, 
-    washrooms, and neighbourhoods.
-    """
-    return parks_df.to_dict(orient="records")
+# Commented this as this became reduntant. Confirm please.
+# def get_vancouver_parks_info():
+#     """
+#     Retrieves the dataset of Vancouver parks. 
+#     Use this to answer questions about park names, hectares, 
+#     washrooms, and neighbourhoods.
+#     """
+#     return parks_df.to_dict(orient="records")
 
 # Set up AI agent with chatlas
 # read the GitHub token from .env file
@@ -130,7 +131,9 @@ chat_agent = ChatAnthropic(
 )
 
 # register the parks dataframe with the chat agent so it can be queried
-chat_agent.register_tool(get_vancouver_parks_info)
+# commented this becasue this became redundant. Confirm please. 
+# chat_agent.register_tool(get_vancouver_parks_info)
+
 
 # chat = ui.Chat(id="park_chat") # Moved this here
 app_ui = ui.page_navbar(
@@ -405,7 +408,11 @@ def server(input, output, session):
         # Send to AI
         try:
             response = chat_agent.chat(user_msg)
-            raw = str(response).strip().replace("```", "").strip()
+            # raw = str(response).strip().replace("```", "").strip()
+            raw = str(response).strip()
+            if raw.startswith("```"):
+                raw = raw.split("\n", 1)[-1]
+            raw = raw.replace("```", "").strip()
 
             # Parse JSON from model
             try:
