@@ -196,7 +196,7 @@ def server(input, output, session):
     
         # color: light red if selected (or none selected), grey otherwise
         all_counts['Color'] = all_counts['NeighbourhoodName'].apply(
-            lambda n: 'blue' if (not selected or n in selected) else 'grey'
+            lambda n: '#90caf9' if (not selected or n in selected) else '#bdbdbd'
         )
     
         # average washroom counts across all parks
@@ -216,7 +216,7 @@ def server(input, output, session):
         fig.add_hline(
             y=avg,
             line_dash="dot",
-            line_color="lightred",
+            line_color="#ef9a9a",
             # annotation_text=f"Avg: {avg:.1f}",
             # annotation_position="top right"
         )
