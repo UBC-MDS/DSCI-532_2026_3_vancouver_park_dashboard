@@ -7,8 +7,7 @@ from ipyleaflet import Popup
 from ipywidgets import HTML
 import folium
 from folium import Popup
-
-parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
+from chatlas import ChatOpenAI
 
 def folium_map(df):
     
@@ -48,87 +47,118 @@ def folium_map(df):
 
     return fmap.get_root().render()
 
-app_ui = ui.page_sidebar(
-    # Sidebar with filters
-    ui.sidebar(
-        # Search input for parks
-        ui.input_text("search", "Search Parks", placeholder="Enter keywords..."),
+# chat = ChatOpenAI()
 
-        # Dropdown for neighbourhood selection
-        ui.input_selectize(
-            "neighbourhood", 
-            "Neighbourhood", 
-            choices=sorted(parks_df['NeighbourhoodName'].dropna().unique().tolist()),
-            multiple=True
-        ),
-        # Slider for park size
-        ui.input_slider("size", "Hectare", 
-                        parks_df['Hectare'].min(), parks_df['Hectare'].max(), 
-                        [parks_df['Hectare'].min(), parks_df['Hectare'].max()]),
+parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
 
-        # Checkbox group for facilities
-        ui.input_checkbox_group(
-            "facilities",
-            "Select Facilities",
-            {
-                "Washrooms": "Washrooms",
-                "Facilities": "Facilities",
-                "SpecialFeatures": "Special Features"
-            },
-            selected=[]
-        ),
-
-        ui.hr(),
-        ui.markdown("Adjust filters to update the charts."),
-        title="Filters"
-    ),
-
-    # Main Content Area
-    ui.card(
-        ui.card_header("Park Overview"),
-        
-        # Top level, Table and Pie Chart
-        # We use height=300 to ensure the top row doesn't crowd the map
-        ui.layout_column_wrap(
-            ui.card(
-                ui.card_header("Table of data"),
-                ui.output_table("table_out")
-            ),
-            ui.card(
-                ui.card_header("Washroom availability"),
-                output_widget("washroom_chart")
-            ),
-            width=1/2,
-            height=300
-            
-        ),
-
-        # Bottom level, Map for park location
-        ui.card(
-            ui.card_header("Map"),
-            ui.tags.div(
-                {"style": "position: relative;"},
-                # create map output
-                ui.output_ui("park_map"),
-                ui.tags.div(
-                    # add park count widget
-                    ui.output_text("park_count"),
-                    style=(
-                        "position: absolute; top: 12px; right: 12px; z-index: 1000; "
-                        "background: rgba(255, 255, 255, 0.8); border-radius: 7px; "
-                        "padding: 6px 10px; font-weight: 600; "
-                        "box-shadow: 0 1px 4px rgba(0,0,0,0.15);"
-                    ),
+app_ui = ui.page_navbar(
+    # original dashboard tab
+    ui.nav_panel(
+        "Standard Explorer",
+        ui.layout_sidebar(
+            # Sidebar with filters
+            ui.sidebar(
+                # Search input for parks
+                ui.input_text("search", "Search Parks", placeholder="Enter keywords..."),
+                
+                # Dropdown for neighbourhood selection
+                ui.input_selectize(
+                    "neighbourhood", 
+                    "Neighbourhood",
+                    choices=sorted(parks_df['NeighbourhoodName'].dropna().unique().tolist()),
+                    multiple=True
                 ),
+
+                # Slider for park size
+                ui.input_slider("size", "Hectare", 
+                                parks_df['Hectare'].min(), parks_df['Hectare'].max(), 
+                                [parks_df['Hectare'].min(), parks_df['Hectare'].max()]),
+                
+                # Checkbox group for facilities
+                ui.input_checkbox_group(
+                    "facilities", 
+                    "Select Facilities",
+                    {
+                        "Washrooms": "Washrooms", 
+                        "Facilities": "Facilities", 
+                        "SpecialFeatures": "Special Features"
+                    },
+                    selected=[]
+                ),
+                ui.hr(),
+                ui.markdown("Adjust filters to update the charts."),
+                title="Filters"
             ),
-            full_screen=True
+            ui.card(
+                ui.card_header("Park Overview"),
+                ui.layout_column_wrap(
+                    ui.card(ui.card_header("Table of data"), ui.output_table("table_out")),
+                    ui.card(ui.card_header("Washroom availability"), output_widget("washroom_chart")),
+                    width=1/2, height=300
+                ),
+                ui.card(
+                    ui.card_header("Map"), 
+                    ui.tags.div(
+                        {"style": "position: relative;"},
+                        # create map output
+                        ui.output_ui("park_map"),
+                        ui.tags.div(
+                            # add park count widget
+                            ui.output_text("park_count"),
+                            style=(
+                                "position: absolute; top: 12px; right: 12px; z-index: 1000; "
+                                "background: rgba(255, 255, 255, 0.8); border-radius: 7px; "
+                                "padding: 6px 10px; font-weight: 600; "
+                                "box-shadow: 0 1px 4px rgba(0,0,0,0.15);"
+                            ),
+                        ),
+                    ),
+                    full_screen=True
+                )
+            )
+        )
+    ),
+    
+    # AI power tab
+    ui.nav_panel(
+        "AI Query Chat",
+        ui.layout_sidebar(
+            ui.sidebar(
+                ui.markdown("### AI Assistant"),
+                ui.input_text_area("chat_input", "Ask a question about the parks:", 
+                                  placeholder="e.g., Show me parks in Kitsilano larger than 2 hectares with washrooms"),
+                ui.input_action_button("ask_ai", "Query Data", class_="btn-primary"),
+                ui.hr(),
+                ui.download_button("download_ai_data", "Download Filtered Data"),
+                title="AI Controls"
+            ),
+            ui.layout_column_wrap(
+                ui.card(
+                    ui.card_header("AI Filtered Data"),
+                    ui.output_data_frame("ai_table_out")
+                ),
+                ui.layout_column_wrap(
+                    ui.card(
+                        ui.card_header("Distribution by Neighbourhood"),
+                        output_widget("ai_bar_chart")
+                    ),
+                    ui.card(
+                        ui.card_header("Washroom Stats (AI Filtered)"),
+                        output_widget("ai_washroom_pie")
+                    ),
+                    width=1
+                ),
+                width=1
+            )
         )
     ),
     title="Vancouver Park Dashboard",
-    fillable=True
+    id="main_tabs"
 )
 
+
 def server(input, output, session):
+
     @reactive.calc
     def filtered():
         """
