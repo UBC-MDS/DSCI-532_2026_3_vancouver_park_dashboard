@@ -49,8 +49,18 @@ def folium_map(df):
     return fmap.get_root().render()
 
 app_ui = ui.page_sidebar(
-    # Sidebar with filters
-    ui.sidebar(
+    # format the title to make it visually stand out  
+    ui.sidebar( 
+                
+        ui.tags.style("""
+            .navbar-brand {
+                color: white !important;
+            }
+            .navbar {
+                background-color: lightblue !important
+            }
+        """),
+    
         # Search input for parks
         ui.input_text("search", "Search Parks", placeholder="Enter keywords..."),
 
