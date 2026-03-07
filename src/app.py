@@ -221,7 +221,12 @@ def server(input, output, session):
             # annotation_position="top right"
         )
     
-        fig.update_layout(xaxis_tickangle=-45)
+        fig.update_layout(
+            xaxis_tickangle=-45,
+            xaxis_tickfont=dict(size=6.5),
+            xaxis_title_font=dict(size=12),
+            yaxis_title_font=dict(size=12)
+        )
     
         return fig
 
