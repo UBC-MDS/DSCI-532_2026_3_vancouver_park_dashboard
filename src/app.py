@@ -164,6 +164,16 @@ app_ui = ui.page_navbar(
                 ui.download_button("download_ai_data", "Download Filtered Data"),
                 title="AI Controls"
             ),
+            # Added wrapped for Ai chat
+            ui.layout_column_wrap(
+                ui.layout_column_wrap(
+                    ui.card(
+                        ui.card_header("Chat Log"),
+                        ui.chat_ui("park_chat")
+                    ),
+                    width =1
+                ),
+            # ---
             ui.layout_column_wrap(
                 ui.card(
                     ui.card_header("AI Filtered Data"),
