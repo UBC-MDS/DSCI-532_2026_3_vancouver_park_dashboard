@@ -415,4 +415,25 @@ def server(input, output, session):
         
         return ui.HTML(display_df.to_html(escape=False, index=False))
 
+    # AI rendered washroom pie chart
+    @render_widget
+    def ai_washroom_pie():
+        df = ai_filtered()
+        
+        if df.empty:
+            tmp = pd.DataFrame({"Category": ["No results"], "Count": [1]})
+            return px.pie(tmp, names="Category", values="Count")
+        
+        counts = df["Washrooms"].value_counts(dropna=False).reset_index()
+        counts.columns = ["Washrooms", "Count"]
+        counts["Washrooms"] = counts["Washrooms"].map({"Y": "Yes", "N": "No"}).fillna("Unknown")
+
+        return px.pie(
+            counts,
+            names="Washrooms",
+            values="Count",
+            color="Washrooms",
+            color_discrete_map={"Yes": "darkgreen", "No": "lightgreen", "Unknown": "gray"}
+        )
+
 app = App(app_ui, server)
