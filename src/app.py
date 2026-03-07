@@ -446,5 +446,14 @@ def server(input, output, session):
             srcdoc=html_str,
             style="height: 50vh; width: 100%; border: none;"
         )
+    
+    # AI rendered text for 'No results'
+    @render.text
+    def ai_park_count():
+        df = ai_filtered()
+        
+        if df.empty:
+            return "Park Count: 0 (No results)"
+        return f"Park Count: {len(df)}"
 
 app = App(app_ui, server)
