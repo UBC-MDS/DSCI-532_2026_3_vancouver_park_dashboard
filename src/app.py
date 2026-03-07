@@ -396,4 +396,23 @@ def server(input, output, session):
         """Download the data currently shown in the AI tab"""
         yield ai_filtered_df().to_csv(index=False)
 
+    # AI rendered table output
+    @render.ui
+    def ai_table_out():
+        df = ai_filtered()
+        
+        if df.empty:
+            return ui.HTML("<p><b>No parks match your AI query.</b> Try a different prompt.</p>")
+        
+        display_df = pd.DataFrame({
+            "Name": df["Name"],
+            "Address": df["StreetNumber"].astype(str) + " " + df["StreetName"],
+            "Neighbourhood": df["NeighbourhoodName"],
+            "URL": df["NeighbourhoodURL"].apply(
+                lambda x: f'<a href="{x}" target="_blank">{x}</a>' if pd.notna(x) else ""
+                                            ),
+        })
+        
+        return ui.HTML(display_df.to_html(escape=False, index=False))
+
 app = App(app_ui, server)
