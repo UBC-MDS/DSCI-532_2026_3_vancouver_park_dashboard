@@ -188,25 +188,41 @@ def server(input, output, session):
     def washroom_chart():
         df = filtered()
         
-        # count how many Y and N there are in df
-        counts = df['Washrooms'].value_counts().reset_index()
-        counts.columns = ['Washrooms', 'Count']
-        
-        # turn 'Y' to 'Yes' and 'N' to 'No'
-        counts['Washrooms'] = counts['Washrooms'].map({
-            'Y': 'Yes',
-            'N': 'No'
-        })
-        
-        # plot the pie chart
-        pie = px.pie(
-            counts, names='Washrooms', values='Count', color='Washrooms',
-            color_discrete_map={
-                "Yes": 'darkgreen',
-                "No": 'lightgreen'
-            }
+        # calculate total number of washrooms per neighbourhood across ALL parks
+        all_counts = parks_df[parks_df['Washrooms'] == 'Y'].groupby('NeighbourhoodName').size().reset_index(name='Count')
+    
+        # extract selected neighbourhoods from the drop-down input
+        selected = list(input.neighbourhood())
+    
+        # color: light red if selected (or none selected), grey otherwise
+        all_counts['Color'] = all_counts['NeighbourhoodName'].apply(
+            lambda n: 'blue' if (not selected or n in selected) else 'grey'
         )
-
-        return pie
+    
+        # average washroom counts across all parks
+        avg = all_counts['Count'].mean()
+    
+        # plot a bar chart
+        fig = px.bar(
+            all_counts,
+            x='NeighbourhoodName',
+            y='Count',
+            labels={'NeighbourhoodName': 'Neighbourhood', 'Count': 'Total Washrooms'},
+        )
+    
+        fig.update_traces(marker_color=all_counts['Color'])
+    
+        # add horizontal dotted average line
+        fig.add_hline(
+            y=avg,
+            line_dash="dot",
+            line_color="lightred",
+            # annotation_text=f"Avg: {avg:.1f}",
+            # annotation_position="top right"
+        )
+    
+        fig.update_layout(xaxis_tickangle=-45)
+    
+        return fig
 
 app = App(app_ui, server)
