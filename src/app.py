@@ -188,7 +188,7 @@ def server(input, output, session):
 
         return filtered_df
     
-    @render.table
+    @render.ui
     def table_out():
         df = filtered()
         
@@ -196,9 +196,9 @@ def server(input, output, session):
             'Name': df['Name'],
             'Address': df['StreetNumber'].astype(str) + ' ' + df['StreetName'],
             'Neighbourhood': df['NeighbourhoodName'],
-            'URL': df['NeighbourhoodURL']
+            'URL': df['NeighbourhoodURL'].apply(lambda x: f'<a href="{x}" target="_blank">{x}</a>')
             })
-        return display_df
+        return ui.HTML(display_df.to_html(escape=False, index=False))
         
     @render.ui
     def park_map():
