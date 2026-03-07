@@ -5,8 +5,48 @@ import plotly.express as px
 from ipyleaflet import Map, Marker, WidgetControl
 from ipyleaflet import Popup
 from ipywidgets import HTML
+import folium
+from folium import Popup
 
 parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
+
+def folium_map(df):
+    
+    # create map centered around downtown Vancouver
+    fmap = folium.Map(
+        location=(49.275, -123.12),
+        zoom_start=12,
+        tiles="OpenStreetMap"
+    )
+    
+    # create a circle marker at each park latitude and longitude
+    for _, row in df.iterrows():
+        coords = row["GoogleMapDest"]
+        if pd.isna(coords):
+            continue
+
+        lat_str, lon_str = coords.split(",")
+        lat, lon = float(lat_str), float(lon_str)
+
+        # add a pop-up with the name of the park
+        popup_html = f"""
+            <b>{row['Name']}</b><br>
+            Neighbourhood: {row['NeighbourhoodName']}<br>
+            Size: {row['Hectare']} ha
+        """
+        
+        # create circle marker
+        folium.CircleMarker(
+            location=(lat, lon),
+            radius=6,
+            color="#2e7d32",
+            fill=True,
+            fill_color="#2e7d32",
+            fill_opacity=0.8,
+            popup=Popup(popup_html, max_width=250)
+        ).add_to(fmap)
+
+    return fmap.get_root().render()
 
 app_ui = ui.page_sidebar(
     # Sidebar with filters
@@ -48,7 +88,7 @@ app_ui = ui.page_sidebar(
         ui.card_header("Park Overview"),
         
         # Top level, Table and Pie Chart
-        # We use height=350 to ensure the top row doesn't crowd the map
+        # We use height=300 to ensure the top row doesn't crowd the map
         ui.layout_column_wrap(
             ui.card(
                 ui.card_header("Table of data"),
@@ -66,10 +106,23 @@ app_ui = ui.page_sidebar(
         # Bottom level, Map for park location
         ui.card(
             ui.card_header("Map"),
-            output_widget("park_map"),
+            ui.tags.div(
+                {"style": "position: relative;"},
+                # create map output
+                ui.output_ui("park_map"),
+                ui.tags.div(
+                    # add park count widget
+                    ui.output_text("park_count"),
+                    style=(
+                        "position: absolute; top: 12px; right: 12px; z-index: 1000; "
+                        "background: rgba(255, 255, 255, 0.8); border-radius: 7px; "
+                        "padding: 6px 10px; font-weight: 600; "
+                        "box-shadow: 0 1px 4px rgba(0,0,0,0.15);"
+                    ),
+                ),
+            ),
             full_screen=True
-        ),
-        fill=True
+        )
     ),
     title="Vancouver Park Dashboard",
     fillable=True
@@ -117,62 +170,19 @@ def server(input, output, session):
             })
         return display_df
         
-    @render_widget
+    @render.ui
     def park_map():
         df = filtered()
-
-        # Center the map roughly on Vancouver
-        m = Map(center=(49.2827, -123.1207), zoom=12)
+        html_str = folium_map(df)
         
-        # Create a custom HTML widget to display the count of parks
-        count_html = HTML(value=f"""
-            <div style="
-                background: rgba(255, 255, 255, 0.8); 
-                backdrop-filter: blur(4px);
-                padding: 10px; 
-                border-radius: 8px; 
-                border: 1px solid rgba(0,0,0,0.1);
-                text-align: center; 
-                min-width: 100px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            ">
-                <div style="font-size: 10px; color: #444; font-weight: bold; letter-spacing: 1px;">COUNT</div>
-                <div style="font-size: 24px; color: #2e7d32; font-weight: 800; line-height: 1;">{len(df)}</div>
-            </div>
-        """)
+        return ui.tags.iframe(
+            srcdoc=html_str,
+            style="height: 50vh; width: 100%; border: none;"
+        )
         
-        # Add the control directly to the map object
-        m.add_control(WidgetControl(widget=count_html, position='topright'))
-
-
-        if df.empty:
-            return m
-
-        # Add a marker for each park
-        for _, row in df.iterrows():
-            coords = row['GoogleMapDest']
-            if pd.isna(coords):
-                continue
-            
-            lat_str, lon_str = coords.split(",")
-            lat, lon = float(lat_str), float(lon_str)
-            marker = Marker(
-                location=(lat, lon),
-                draggable=False,
-            )
-            popup = Popup(
-                location=(lat, lon),
-                child=HTML(f"""
-                           <b>{row['Name']}</b><br>
-                           Neighbourhood: {row['NeighbourhoodName']}<br>
-                           Size: {row['Hectare']} ha
-                           """),
-                close_button=True,
-                auto_close=False
-                )
-            marker.popup = popup
-            m.add_layer(marker)
-        return m
+    @render.text
+    def park_count():
+        return f"Park Count: {len(filtered())}"
     
     @render_widget
     def washroom_chart():
@@ -196,7 +206,7 @@ def server(input, output, session):
                 "No": 'lightgreen'
             }
         )
-        
+
         return pie
 
 app = App(app_ui, server)
