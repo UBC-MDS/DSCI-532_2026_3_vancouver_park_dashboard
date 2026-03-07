@@ -55,6 +55,7 @@ app_ui = ui.page_sidebar(
         ui.tags.style("""
             .navbar-brand {
                 color: white !important;
+                font-weight: bold !important;
             }
             .navbar {
                 background-color: lightblue !important
