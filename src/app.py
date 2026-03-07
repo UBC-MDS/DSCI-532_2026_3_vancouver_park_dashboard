@@ -11,9 +11,39 @@ import chatlas
 from chatlas import ChatAnthropic
 import os
 from dotenv import load_dotenv
+import json
+import difflib
 
 # read dataframe
 parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
+
+# adding neighbourhood best match for random prompts
+VALID_NEIGHBOURHOODS = sorted(parks_df["NeighbourhoodName"].dropna().unique().tolist())
+
+def best_match_neighbourhoods(user_neighs, valid_neighs, cutoff=0.6):
+    """
+    Map user-provided neighbourhood strings to closest matches in valid_neighs.
+    Returns a list of matched neighbourhood names (duplicates removed).
+    """
+    matched = []
+    for n in user_neighs:
+        if not n:
+            continue
+        n_str = str(n).strip()
+        if n_str in valid_neighs:
+            matched.append(n_str)
+            continue
+        guess = difflib.get_close_matches(n_str, valid_neighs, n=1, cutoff=cutoff)
+        if guess:
+            matched.append(guess[0])
+    # unique, preserve order
+    seen = set()
+    out = []
+    for x in matched:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
 
 # function to create a folium map with circle markers for each park
 def folium_map(df):
@@ -73,10 +103,30 @@ if not api_key:
 chat_agent = ChatAnthropic(
     model="claude-sonnet-4-0",
     api_key=api_key,
-    system_prompt="""You are a Vancouver Parks expert. 
-    You have a dataframe 'vancouver_parks'. 
-    When a user asks to filter or find parks, write and execute 
-    pandas code to filter 'vancouver_parks' and return the result."""
+    system_prompt="""
+    You are helping filter a pandas DataFrame named vancouver_parks.
+    
+    Return ONLY valid JSON (no markdown, no backticks, no explanation).
+    Schema:
+    {
+        "name_contains": string or null,
+        "neighbourhoods": list of strings or [],
+        "hectare_min": number or null,
+        "hectare_max": number or null,
+        "flags": { "Washrooms": "Y"|"N"|null, "Facilities": "Y"|"N"|null, "SpecialFeatures": "Y"|"N"|null }
+    }
+
+    Rules:
+    - Use only the fields in the schema.
+    - If the user doesn’t specify something, use null (or [] for neighbourhoods).
+    - Strings must be plain values (no regex).
+    - Flags must be only Y, N, or null.
+    - If unsure, set the field to null/[].
+
+    Examples (JSON only):
+    {"name_contains":"Stanley","neighbourhoods":[],"hectare_min":null,"hectare_max":null,"flags":{"Washrooms":null,"Facilities":null,"SpecialFeatures":null}}
+    {"name_contains":null,"neighbourhoods":["Kitsilano"],"hectare_min":2,"hectare_max":null,"flags":{"Washrooms":"Y","Facilities":null,"SpecialFeatures":null}}
+    """
 )
 
 # register the parks dataframe with the chat agent so it can be queried
@@ -354,21 +404,74 @@ def server(input, output, session):
 
         # Send to AI
         try:
-            # Note: response = chat_agent.chat(...) is synchronous in chatlas
             response = chat_agent.chat(user_msg)
-            ai_text = str(response) # Use str() to get the text content clearly
+            raw = str(response).strip().replace("```", "").strip()
 
-            # Attempt to filter
+            # Parse JSON from model
             try:
-                new_df = parks_df.query(ai_text)
-                ai_filtered_df.set(new_df)
-                await chat.append_message(f"Filtered to **{len(new_df)}** parks using: `{ai_text}`")
-            except:
-                # If it wasn't a query, just show the text
-                await chat.append_message(ai_text)
-                
+                spec = json.loads(raw)
+            except Exception:
+                await chat.append_message({"role": "assistant", "content": f"⚠️ AI did not return valid JSON.\nGot:\n{raw}"})
+                return
+
+            new_df = parks_df.copy()
+
+            # 1) Name contains (case-insensitive)
+            name_contains = spec.get("name_contains")
+            if name_contains:
+                new_df = new_df[new_df["Name"].str.contains(str(name_contains), case=False, na=False)]
+
+            # 2) Neighbourhoods (best-match)
+            user_neighs = spec.get("neighbourhoods") or []
+            matched_neighs = best_match_neighbourhoods(user_neighs, VALID_NEIGHBOURHOODS, cutoff=0.6)
+            if matched_neighs:
+                new_df = new_df[new_df["NeighbourhoodName"].isin(matched_neighs)]
+
+            # 3) Hectare range
+            hmin = spec.get("hectare_min")
+            hmax = spec.get("hectare_max")
+            if hmin is not None:
+                new_df = new_df[new_df["Hectare"] >= float(hmin)]
+            if hmax is not None:
+                new_df = new_df[new_df["Hectare"] <= float(hmax)]
+
+            # 4) Flags (Y/N)
+            flags = spec.get("flags") or {}
+            for col in ["Washrooms", "Facilities", "SpecialFeatures"]:
+                val = flags.get(col)
+                if val in ("Y", "N"):
+                    new_df = new_df[new_df[col] == val]
+
+            ai_filtered_df.set(new_df)
+
+            # Tell user what we matched
+            msg = f"Filtered to {len(new_df)} parks."
+            if user_neighs and matched_neighs:
+                msg += f"\nMatched neighbourhoods: {matched_neighs}"
+
+            await chat.append_message({"role": "assistant", "content": msg})
+
         except Exception as e:
-            await chat.append_message(f"Connection Error: {str(e)}")
+            await chat.append_message({"role": "assistant", "content": f"Connection/Error: {str(e)}"})
+
+
+
+        # try:
+        #     # Note: response = chat_agent.chat(...) is synchronous in chatlas
+        #     response = chat_agent.chat(user_msg)
+        #     ai_text = str(response) # Use str() to get the text content clearly
+
+        #     # Attempt to filter
+        #     try:
+        #         new_df = parks_df.query(ai_text)
+        #         ai_filtered_df.set(new_df)
+        #         await chat.append_message(f"Filtered to **{len(new_df)}** parks using: `{ai_text}`")
+        #     except:
+        #         # If it wasn't a query, just show the text
+        #         await chat.append_message(ai_text)
+                
+        # except Exception as e:
+        #     await chat.append_message(f"Connection Error: {str(e)}")
     
     # Commented. Code added towards the end. Code kept for future refernce. Can remove before update.
     # render function
