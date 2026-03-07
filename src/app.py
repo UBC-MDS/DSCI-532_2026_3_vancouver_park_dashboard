@@ -216,9 +216,7 @@ def server(input, output, session):
         fig.add_hline(
             y=avg,
             line_dash="dot",
-            line_color="#ef9a9a",
-            # annotation_text=f"Avg: {avg:.1f}",
-            # annotation_position="top right"
+            line_color="#ef9a9a"
         )
     
         fig.update_layout(
