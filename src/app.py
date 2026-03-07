@@ -59,13 +59,14 @@ app_ui = ui.page_navbar(
             # Sidebar with filters
             ui.sidebar(
                 # Search input for parks
-                ui.input_text("search", "Search Parks", placeholder="Enter keywords..."),
+                ui.input_text("search", "Search Park by Name", placeholder="Enter park name..."),
                 
                 # Dropdown for neighbourhood selection
                 ui.input_selectize(
                     "neighbourhood", 
                     "Neighbourhood",
                     choices=sorted(parks_df['NeighbourhoodName'].dropna().unique().tolist()),
+                    selected="Downtown",
                     multiple=True
                 ),
 
@@ -85,8 +86,8 @@ app_ui = ui.page_navbar(
                     },
                     selected=[]
                 ),
-                ui.hr(),
-                ui.markdown("Adjust filters to update the charts."),
+                ui.markdown("Facilties may include playgrounds, soccer fields, tennis courts or field houses."),
+                ui.markdown("Special Features may include exercise stations, gardens, picnic benches or perimeter walking paths"),
                 title="Filters"
             ),
             ui.card(
@@ -226,7 +227,7 @@ def server(input, output, session):
     
         # color: light red if selected (or none selected), grey otherwise
         all_counts['Color'] = all_counts['NeighbourhoodName'].apply(
-            lambda n: '#90caf9' if (not selected or n in selected) else '#bdbdbd'
+            lambda n: '#2e7d32' if (not selected or n in selected) else '#bdbdbd'
         )
     
         # average washroom counts across all parks
