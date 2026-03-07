@@ -82,6 +82,7 @@ chat_agent = ChatAnthropic(
 # register the parks dataframe with the chat agent so it can be queried
 chat_agent.register_tool(get_vancouver_parks_info)
 
+# chat = ui.Chat(id="park_chat") # Moved this here
 app_ui = ui.page_navbar(
     # original dashboard tab
     ui.nav_panel(
@@ -166,29 +167,26 @@ app_ui = ui.page_navbar(
             ),
             # Added wrapped for Ai chat
             ui.layout_column_wrap(
-                ui.layout_column_wrap(
                     ui.card(
                         ui.card_header("Chat Log"),
                         ui.chat_ui("park_chat")
                     ),
-                    width =1
-                ),
             # ---
-            ui.layout_column_wrap(
-                ui.card(
-                    ui.card_header("AI Filtered Data"),
-                    ui.output_data_frame("ai_table_out")
-                ),
-                ui.layout_column_wrap(
+                    # ui.layout_column_wrap(
                     ui.card(
-                        ui.card_header("Distribution by Neighbourhood"),
-                        output_widget("ai_bar_chart")
+                        ui.card_header("AI Filtered Data"),
+                        ui.output_ui("ai_table_out")
                     ),
-                    ui.card(
-                        ui.card_header("Washroom Stats (AI Filtered)"),
-                        output_widget("ai_washroom_pie")
+                    ui.layout_column_wrap(
+                        ui.card(
+                            ui.card_header("Distribution by Neighbourhood"),
+                            output_widget("ai_bar_chart")
+                        ),
+                        ui.card(
+                            ui.card_header("Washroom Stats (AI Filtered)"),
+                            output_widget("ai_washroom_pie")
                     ),
-                    width=1
+                    width=1/2
                 ),
                 # Added Map UI for AI interface
                 ui.card(
@@ -205,7 +203,7 @@ app_ui = ui.page_navbar(
                                     ),
                                 ),
                     ), full_screen=True
-                )
+                ),
                 # ---
                 width=1
             )
@@ -220,6 +218,9 @@ def server(input, output, session):
     
     # Original Dashboard Reactive Logic
     # Reactive expression to filter the parks data frame based on user inputs
+    
+    chat = ui.Chat(id="park_chat") # Moved this here
+
     @reactive.calc
     def filtered():
         """
@@ -250,10 +251,10 @@ def server(input, output, session):
         return filtered_df
 
     # Added filtered df for Ai output
-    ai_df = reactive.Value(parks_df)
+    ai_filtered_df = reactive.Value(parks_df)
     @reactive.calc
     def ai_filtered():
-        return ai_df()
+        return ai_filtered_df()
     # ---
     
     @render.ui
@@ -332,8 +333,10 @@ def server(input, output, session):
     
     # Reactive value to store the dataframe for the AI tab
     # This keeps it separate from your manual filters
-    ai_filtered_df = reactive.Value(parks_df)
-    chat = ui.Chat(id="park_chat")
+
+
+    # ai_filtered_df = reactive.Value(parks_df)
+    # chat = ui.Chat(id="park_chat")
 
     # 2. Trigger AI when the "Query Data" BUTTON is clicked
     @reactive.effect
@@ -366,30 +369,34 @@ def server(input, output, session):
                 
         except Exception as e:
             await chat.append_message(f"Connection Error: {str(e)}")
-
+    
+    # Commented. Code added towards the end. Code kept for future refernce. Can remove before update.
     # render function
-    @render.data_frame
-    def ai_table_out():
-        """Displays the AI-filtered dataframe"""
-        return render.DataTable(ai_filtered_df())
+    # @render.data_frame
+    # def ai_table_out():
+    #     """Displays the AI-filtered dataframe"""
+    #     return render.DataTable(ai_filtered_df())
 
-    @render_widget
-    def ai_bar_chart():
-        """Visualization 1: Bar chart of Park Sizes"""
-        df = ai_filtered_df()
-        if df.empty: return px.scatter(title="No data found")
-        return px.bar(df, x='Name', y='Hectare', color='NeighbourhoodName', 
-                      title="Park Sizes (AI Results)")
+    # Commented. Code added towards the end. Code kept for future refernce. Can remove before update.
 
-    @render_widget
-    def ai_washroom_pie():
-        """Visualization 2: Pie chart of Washrooms"""
-        df = ai_filtered_df()
-        if df.empty: return px.scatter(title="No data found")
-        counts = df['Washrooms'].value_counts().reset_index()
-        counts.columns = ['Status', 'Count']
-        return px.pie(counts, names='Status', values='Count', 
-                      title="Washroom Availability (AI Results)")
+    # @render_widget
+    # def ai_bar_chart():
+    #     """Visualization 1: Bar chart of Park Sizes"""
+    #     df = ai_filtered_df()
+    #     if df.empty: return px.scatter(title="No data found")
+    #     return px.bar(df, x='Name', y='Hectare', color='NeighbourhoodName', 
+    #                   title="Park Sizes (AI Results)")
+
+    # Commented. Code added towards the end. Code kept for future refernce. Can remove before update.
+    # @render_widget
+    # def ai_washroom_pie():
+    #     """Visualization 2: Pie chart of Washrooms"""
+    #     df = ai_filtered_df()
+    #     if df.empty: return px.scatter(title="No data found")
+    #     counts = df['Washrooms'].value_counts().reset_index()
+    #     counts.columns = ['Status', 'Count']
+    #     return px.pie(counts, names='Status', values='Count', 
+    #                   title="Washroom Availability (AI Results)")
 
     @render.download(filename="vancouver_parks_ai_export.csv")
     def download_ai_data():
