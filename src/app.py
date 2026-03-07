@@ -7,8 +7,15 @@ from ipyleaflet import Popup
 from ipywidgets import HTML
 import folium
 from folium import Popup
-from chatlas import ChatOpenAI
+import chatlas
+from chatlas import ChatAnthropic
+import os
+from dotenv import load_dotenv
 
+# read dataframe
+parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
+
+# function to create a folium map with circle markers for each park
 def folium_map(df):
     
     # create map centered around downtown Vancouver
@@ -47,9 +54,33 @@ def folium_map(df):
 
     return fmap.get_root().render()
 
-# chat = ChatOpenAI()
+def get_vancouver_parks_info():
+    """
+    Retrieves the dataset of Vancouver parks. 
+    Use this to answer questions about park names, hectares, 
+    washrooms, and neighbourhoods.
+    """
+    return parks_df.to_dict(orient="records")
 
-parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
+# Set up AI agent with chatlas
+# read the GitHub token from .env file
+# Initialize the chat agent with the appropriate model and token
+load_dotenv() 
+api_key = os.getenv("ANTHROPIC_API_KEY")
+if not api_key:
+    raise ValueError("ANTHROPIC_API_KEY not found! Check your .env file.")
+
+chat_agent = ChatAnthropic(
+    model="claude-sonnet-4-0",
+    api_key=api_key,
+    system_prompt="""You are a Vancouver Parks expert. 
+    You have a dataframe 'vancouver_parks'. 
+    When a user asks to filter or find parks, write and execute 
+    pandas code to filter 'vancouver_parks' and return the result."""
+)
+
+# register the parks dataframe with the chat agent so it can be queried
+chat_agent.register_tool(get_vancouver_parks_info)
 
 app_ui = ui.page_navbar(
     # original dashboard tab
@@ -127,6 +158,7 @@ app_ui = ui.page_navbar(
                 ui.markdown("### AI Assistant"),
                 ui.input_text_area("chat_input", "Ask a question about the parks:", 
                                   placeholder="e.g., Show me parks in Kitsilano larger than 2 hectares with washrooms"),
+                
                 ui.input_action_button("ask_ai", "Query Data", class_="btn-primary"),
                 ui.hr(),
                 ui.download_button("download_ai_data", "Download Filtered Data"),
@@ -158,7 +190,9 @@ app_ui = ui.page_navbar(
 
 
 def server(input, output, session):
-
+    
+    # Original Dashboard Reactive Logic
+    # Reactive expression to filter the parks data frame based on user inputs
     @reactive.calc
     def filtered():
         """
@@ -238,5 +272,77 @@ def server(input, output, session):
         )
 
         return pie
+    # AI dashboard
+    # AI Reactive Logic
+    # 1. Setup the Chat object (Native Shiny)
+    
+    # Reactive value to store the dataframe for the AI tab
+    # This keeps it separate from your manual filters
+    ai_filtered_df = reactive.Value(parks_df)
+    chat = ui.Chat(id="park_chat")
+
+    # 2. Trigger AI when the "Query Data" BUTTON is clicked
+    @reactive.effect
+    @reactive.event(input.ask_ai)
+    async def handle_button_query():
+        user_msg = input.chat_input()
+        
+        # Check if the input is actually there
+        if not user_msg or user_msg.strip() == "":
+            await chat.append_message("⚠️ Please type a question before clicking Query.")
+            return
+
+        # Show the user's message in the UI so you can see it working
+        await chat.append_message({"role": "user", "content": user_msg})
+
+        # Send to AI
+        try:
+            # Note: response = chat_agent.chat(...) is synchronous in chatlas
+            response = chat_agent.chat(user_msg)
+            ai_text = str(response) # Use str() to get the text content clearly
+
+            # Attempt to filter
+            try:
+                new_df = parks_df.query(ai_text)
+                ai_filtered_df.set(new_df)
+                await chat.append_message(f"✅ Filtered to **{len(new_df)}** parks using: `{ai_text}`")
+            except:
+                # If it wasn't a query, just show the text
+                await chat.append_message(ai_text)
+                
+        except Exception as e:
+            await chat.append_message(f"❌ Connection Error: {str(e)}")
+
+    # render function
+    @render.data_frame
+    def ai_table_out():
+        """Displays the AI-filtered dataframe"""
+        return render.DataTable(ai_filtered_df())
+
+    @render_widget
+    def ai_bar_chart():
+        """Visualization 1: Bar chart of Park Sizes"""
+        df = ai_filtered_df()
+        if df.empty: return px.scatter(title="No data found")
+        return px.bar(df, x='Name', y='Hectare', color='NeighbourhoodName', 
+                      title="Park Sizes (AI Results)")
+
+    @render_widget
+    def ai_washroom_pie():
+        """Visualization 2: Pie chart of Washrooms"""
+        df = ai_filtered_df()
+        if df.empty: return px.scatter(title="No data found")
+        counts = df['Washrooms'].value_counts().reset_index()
+        counts.columns = ['Status', 'Count']
+        return px.pie(counts, names='Status', values='Count', 
+                      title="Washroom Availability (AI Results)")
+
+    # ---------------------------------------------------------
+    # 3. Data Download Button
+    # ---------------------------------------------------------
+    @render.download(filename="vancouver_parks_ai_export.csv")
+    def download_ai_data():
+        """Download the data currently shown in the AI tab"""
+        yield ai_filtered_df().to_csv(index=False)
 
 app = App(app_ui, server)
