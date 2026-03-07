@@ -456,4 +456,68 @@ def server(input, output, session):
             return "Park Count: 0 (No results)"
         return f"Park Count: {len(df)}"
 
+    # Ai rendered bar chart
+    @render_widget
+    def ai_bar_chart():
+        df = ai_filtered()
+        
+        if df.empty:
+            tmp = pd.DataFrame({"NeighbourhoodName": ["No results"], "Count": [0], "Color": ["#bdbdbd"]})
+            fig = px.bar(
+                tmp,
+                x="NeighbourhoodName",
+                y="Count",
+                labels={"NeighbourhoodName": "Neighbourhood", "Count": "Total Washrooms"},
+            )
+            fig.update_traces(marker_color=tmp["Color"])
+            return fig
+
+        # washrooms per neighbourhood
+        all_counts = (
+            df[df["Washrooms"] == "Y"]
+            .groupby("NeighbourhoodName")
+            .size()
+            .reset_index(name="Count")
+        )
+
+        if all_counts.empty:
+            tmp = pd.DataFrame({"NeighbourhoodName": ["No washrooms in results"], "Count": [0], "Color": ["#bdbdbd"]})
+            fig = px.bar(
+                tmp,
+                x="NeighbourhoodName",
+                y="Count",
+                labels={"NeighbourhoodName": "Neighbourhood", "Count": "Total Washrooms"},
+            )
+            fig.update_traces(marker_color=tmp["Color"])
+            return fig
+
+        all_counts["Color"] = "#90caf9"
+
+        # average washroom counts for AI results
+        avg = all_counts["Count"].mean()
+
+        fig = px.bar(
+            all_counts,
+            x="NeighbourhoodName",
+            y="Count",
+            labels={"NeighbourhoodName": "Neighbourhood", "Count": "Total Washrooms"},
+        )
+
+        fig.update_traces(marker_color=all_counts["Color"])
+
+        fig.add_hline(
+            y=avg,
+            line_dash="dot",
+            line_color="#ef9a9a",
+        )
+
+        fig.update_layout(
+            xaxis_tickangle=-45,
+            xaxis_tickfont=dict(size=6.5),
+            xaxis_title_font=dict(size=12),
+            yaxis_title_font=dict(size=12),
+            )
+
+        return fig
+
 app = App(app_ui, server)
