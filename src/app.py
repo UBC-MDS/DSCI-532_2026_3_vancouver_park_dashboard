@@ -190,6 +190,23 @@ app_ui = ui.page_navbar(
                     ),
                     width=1
                 ),
+                # Added Map UI for AI interface
+                ui.card(
+                    ui.card_header("AI Map"),
+                    ui.tags.div( {"style": "position: relative;"},
+                                ui.output_ui("ai_park_map"),
+                                ui.tags.div(
+                                    ui.output_text("ai_park_count"),
+                                    style=(
+                                        "position: absolute; top: 12px; right: 12px; z-index: 1000; "
+                                        "background: rgba(255, 255, 255, 0.8); border-radius: 7px; "
+                                        "padding: 6px 10px; font-weight: 600; "
+                                        "box-shadow: 0 1px 4px rgba(0,0,0,0.15);"
+                                    ),
+                                ),
+                    ), full_screen=True
+                )
+                # ---
                 width=1
             )
         )
