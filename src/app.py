@@ -436,4 +436,15 @@ def server(input, output, session):
             color_discrete_map={"Yes": "darkgreen", "No": "lightgreen", "Unknown": "gray"}
         )
 
+    # AI rendered map
+    @render.ui
+    def ai_park_map():
+        df = ai_filtered()
+        html_str = folium_map(df)
+        
+        return ui.tags.iframe(
+            srcdoc=html_str,
+            style="height: 50vh; width: 100%; border: none;"
+        )
+
 app = App(app_ui, server)
