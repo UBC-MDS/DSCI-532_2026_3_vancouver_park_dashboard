@@ -248,6 +248,13 @@ def server(input, output, session):
             filtered_df = filtered_df[filtered_df[facility] == 'Y']
 
         return filtered_df
+
+    # Added filtered df for Ai output
+    ai_df = reactive.Value(parks_df)
+    @reactive.calc
+    def ai_filtered():
+        return ai_df()
+    # ---
     
     @render.ui
     def table_out():
