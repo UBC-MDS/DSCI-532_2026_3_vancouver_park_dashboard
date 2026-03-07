@@ -222,7 +222,7 @@ def server(input, output, session):
 
         return filtered_df
     
-    @render.table
+    @render.ui
     def table_out():
         df = filtered()
         
@@ -230,9 +230,9 @@ def server(input, output, session):
             'Name': df['Name'],
             'Address': df['StreetNumber'].astype(str) + ' ' + df['StreetName'],
             'Neighbourhood': df['NeighbourhoodName'],
-            'URL': df['NeighbourhoodURL']
+            'URL': df['NeighbourhoodURL'].apply(lambda x: f'<a href="{x}" target="_blank">{x}</a>')
             })
-        return display_df
+        return ui.HTML(display_df.to_html(escape=False, index=False))
         
     @render.ui
     def park_map():
@@ -252,26 +252,46 @@ def server(input, output, session):
     def washroom_chart():
         df = filtered()
         
-        # count how many Y and N there are in df
-        counts = df['Washrooms'].value_counts().reset_index()
-        counts.columns = ['Washrooms', 'Count']
-        
-        # turn 'Y' to 'Yes' and 'N' to 'No'
-        counts['Washrooms'] = counts['Washrooms'].map({
-            'Y': 'Yes',
-            'N': 'No'
-        })
-        
-        # plot the pie chart
-        pie = px.pie(
-            counts, names='Washrooms', values='Count', color='Washrooms',
-            color_discrete_map={
-                "Yes": 'darkgreen',
-                "No": 'lightgreen'
-            }
+        # calculate total number of washrooms per neighbourhood across ALL parks
+        all_counts = parks_df[parks_df['Washrooms'] == 'Y'].groupby('NeighbourhoodName').size().reset_index(name='Count')
+    
+        # extract selected neighbourhoods from the drop-down input
+        selected = list(input.neighbourhood())
+    
+        # color: light red if selected (or none selected), grey otherwise
+        all_counts['Color'] = all_counts['NeighbourhoodName'].apply(
+            lambda n: '#90caf9' if (not selected or n in selected) else '#bdbdbd'
         )
+    
+        # average washroom counts across all parks
+        avg = all_counts['Count'].mean()
+    
+        # plot a bar chart
+        fig = px.bar(
+            all_counts,
+            x='NeighbourhoodName',
+            y='Count',
+            labels={'NeighbourhoodName': 'Neighbourhood', 'Count': 'Total Washrooms'},
+        )
+    
+        fig.update_traces(marker_color=all_counts['Color'])
+    
+        # add horizontal dotted average line
+        fig.add_hline(
+            y=avg,
+            line_dash="dot",
+            line_color="#ef9a9a"
+        )
+    
+        fig.update_layout(
+            xaxis_tickangle=-45,
+            xaxis_tickfont=dict(size=6.5),
+            xaxis_title_font=dict(size=12),
+            yaxis_title_font=dict(size=12)
+        )
+    
+        return fig
 
-        return pie
     # AI dashboard
     # AI Reactive Logic
     # 1. Setup the Chat object (Native Shiny)
@@ -305,13 +325,13 @@ def server(input, output, session):
             try:
                 new_df = parks_df.query(ai_text)
                 ai_filtered_df.set(new_df)
-                await chat.append_message(f"✅ Filtered to **{len(new_df)}** parks using: `{ai_text}`")
+                await chat.append_message(f"Filtered to **{len(new_df)}** parks using: `{ai_text}`")
             except:
                 # If it wasn't a query, just show the text
                 await chat.append_message(ai_text)
                 
         except Exception as e:
-            await chat.append_message(f"❌ Connection Error: {str(e)}")
+            await chat.append_message(f"Connection Error: {str(e)}")
 
     # render function
     @render.data_frame
@@ -337,9 +357,6 @@ def server(input, output, session):
         return px.pie(counts, names='Status', values='Count', 
                       title="Washroom Availability (AI Results)")
 
-    # ---------------------------------------------------------
-    # 3. Data Download Button
-    # ---------------------------------------------------------
     @render.download(filename="vancouver_parks_ai_export.csv")
     def download_ai_data():
         """Download the data currently shown in the AI tab"""
