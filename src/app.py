@@ -38,9 +38,9 @@ def folium_map(df):
         folium.CircleMarker(
             location=(lat, lon),
             radius=6,
-            color="#2e7d32",
+            color="#285F2A",
             fill=True,
-            fill_color="#2e7d32",
+            fill_color="#285F2A",
             fill_opacity=0.8,
             popup=Popup(popup_html, max_width=250)
         ).add_to(fmap)
@@ -87,14 +87,22 @@ app_ui = ui.page_navbar(
                     selected=[]
                 ),
                 ui.markdown("Facilties may include playgrounds, soccer fields, tennis courts or field houses."),
-                ui.markdown("Special Features may include exercise stations, gardens, picnic benches or perimeter walking paths"),
-                title="Filters"
+                ui.markdown("Special Features may include exercise stations, gardens, picnic benches or perimeter walking paths."),
+                ui.input_action_button("reset_all", "Reset all filters"),
+                title="Filters",
             ),
             ui.card(
                 ui.card_header("Park Overview"),
                 ui.layout_column_wrap(
                     ui.card(ui.card_header("Table of data"), ui.output_table("table_out")),
-                    ui.card(ui.card_header("Washroom availability"), output_widget("washroom_chart")),
+                    ui.card(
+                        ui.card_header("Washroom availability"),
+                        ui.tags.div(
+                            output_widget("washroom_chart"),
+                            style="width: 1200px; height: 100%"
+                        ),
+                        style="overflow-x: auto; width: 100%; height:100%"
+                    ),
                     width=1/2, height=300
                 ),
                 ui.card(
@@ -154,7 +162,33 @@ app_ui = ui.page_navbar(
         )
     ),
     title="Vancouver Park Dashboard",
-    id="main_tabs"
+    id="main_tabs",
+    theme=(ui.Theme("flatly")
+    .add_defaults(primary="#285F2A",
+                  secondary="#4d8a50",
+                  background="#b1ceb1",
+                  text="#2e2e2e")
+    .add_rules("""
+        h1 { letter-spacing: 0.05em; }
+
+        /* navbar tab text color */
+        .navbar-nav .nav-link {
+            color: #95a395 !important;
+            font-weight: 600;
+        }
+
+        /* active tab color */
+        .navbar-nav .nav-link.active {
+            color: #beccbe !important;
+        }
+        
+        /* link color */
+        a {
+            color: #4d8a50;
+            font-weight: 500;
+        }
+    """)
+    )
 )
 
 
@@ -199,7 +233,12 @@ def server(input, output, session):
             'Neighbourhood': df['NeighbourhoodName'],
             'URL': df['NeighbourhoodURL'].apply(lambda x: f'<a href="{x}" target="_blank">{x}</a>')
             })
-        return ui.HTML(display_df.to_html(escape=False, index=False))
+        html_table = display_df.to_html(
+            escape=False,
+            index=False,
+            classes="table table-striped table-hover table-sm"
+            )
+        return ui.HTML(html_table)
         
     @render.ui
     def park_map():
@@ -227,7 +266,7 @@ def server(input, output, session):
     
         # color: light red if selected (or none selected), grey otherwise
         all_counts['Color'] = all_counts['NeighbourhoodName'].apply(
-            lambda n: '#2e7d32' if (not selected or n in selected) else '#bdbdbd'
+            lambda n: '#285F2A' if (not selected or n in selected) else '#bdbdbd'
         )
     
         # average washroom counts across all parks
@@ -252,11 +291,34 @@ def server(input, output, session):
     
         fig.update_layout(
             xaxis_tickangle=-45,
-            xaxis_tickfont=dict(size=6.5),
-            xaxis_title_font=dict(size=12),
-            yaxis_title_font=dict(size=12)
+            xaxis_tickfont=dict(size=10),
+            xaxis_title_font=dict(size=14),
+            yaxis_title_font=dict(size=14),
+            height=260,   # slightly smaller than card height
+            width=1200
         )
     
         return fig
+    
+    @reactive.effect
+    @reactive.event(input.reset_all)
+    def _reset_filters():
+        # Reset search box
+        ui.update_text("search", value="")
+        # Reset neighbourhoods (default = Downtown)
+        ui.update_selectize(
+            "neighbourhood",
+            selected=["Downtown"]
+        )
+        # Reset slider to full range
+        ui.update_slider(
+            "size",
+            value=[parks_df['Hectare'].min(), parks_df['Hectare'].max()]
+        )
+        # Reset facilities (none selected)
+        ui.update_checkbox_group(
+            "facilities",
+            selected=[]
+        )
 
 app = App(app_ui, server)
