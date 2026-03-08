@@ -7,3 +7,8 @@ shinywidgets==0.7.1
 uvicorn==0.40.0
 altair==6.0.0
 ipyleaflet==0.20.0
+chatlas==0.15.2
+folium==0.20.0
+python-dotenv==1.2.2
+anthropic==0.84.0
+libsass==0.23.0
