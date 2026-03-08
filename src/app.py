@@ -220,54 +220,55 @@ app_ui = ui.page_navbar(
             ui.sidebar(
                 ui.markdown("### AI Assistant"),
                 ui.input_text_area("chat_input", "Ask a question about the parks:", 
-                                  placeholder="e.g., Show me parks in Kitsilano larger than 2 hectares with washrooms"),
-                
+                                placeholder="e.g., Show me parks in Kitsilano larger than 2 hectares with washrooms"),
                 ui.input_action_button("ask_ai", "Query Data", class_="btn-primary"),
                 ui.hr(),
                 ui.download_button("download_ai_data", "Download Filtered Data"),
                 title="AI Controls"
             ),
-            # Added wrapped for Ai chat
             ui.layout_column_wrap(
-                    ui.card(
-                        ui.card_header("Chat Log"),
-                        ui.chat_ui("park_chat")
-                    ),
-            # ---
-                    # ui.layout_column_wrap(
+                # Row 1: Chat Log full width
+                ui.card(
+                    ui.card_header("Chat Log"),
+                    ui.chat_ui("park_chat"),
+                    style="height: 400px; overflow-y: auto;"
+                ),
+                # Row 2: Table + Chart side by side (nested 50/50)
+                ui.layout_column_wrap(
                     ui.card(
                         ui.card_header("AI Filtered Data"),
-                        ui.output_ui("ai_table_out")
+                        ui.output_ui("ai_table_out"),
+                        style="height: 300px; overflow-y: auto;"
                     ),
-                    ui.layout_column_wrap(
-                        ui.card(
-                            ui.card_header("Distribution by Neighbourhood"),
-                            output_widget("ai_bar_chart")
+                    ui.card(
+                        ui.card_header("Distribution by Neighbourhood"),
+                        ui.tags.div(
+                            output_widget("ai_bar_chart"),
+                            style="width: 1200px; height: 100%;"
                         ),
-                        ui.card(
-                            ui.card_header("Washroom Stats (AI Filtered)"),
-                            output_widget("ai_washroom_pie")
+                        style="height: 300px; overflow-x: auto; overflow-y: hidden;"
                     ),
                     width=1/2
                 ),
-                # Added Map UI for AI interface
+                # Row 3: Map full width
                 ui.card(
                     ui.card_header("AI Map"),
-                    ui.tags.div( {"style": "position: relative;"},
-                                ui.output_ui("ai_park_map"),
-                                ui.tags.div(
-                                    ui.output_text("ai_park_count"),
-                                    style=(
-                                        "position: absolute; top: 12px; right: 12px; z-index: 1000; "
-                                        "background: rgba(255, 255, 255, 0.8); border-radius: 7px; "
-                                        "padding: 6px 10px; font-weight: 600; "
-                                        "box-shadow: 0 1px 4px rgba(0,0,0,0.15);"
-                                    ),
-                                ),
-                    ), full_screen=True
+                    ui.tags.div(
+                        {"style": "position: relative;"},
+                        ui.output_ui("ai_park_map"),
+                        ui.tags.div(
+                            ui.output_text("ai_park_count"),
+                            style=(
+                                "position: absolute; top: 12px; right: 12px; z-index: 1000; "
+                                "background: rgba(255, 255, 255, 0.8); border-radius: 7px; "
+                                "padding: 6px 10px; font-weight: 600; "
+                                "box-shadow: 0 1px 4px rgba(0,0,0,0.15);"
+                            ),
+                        ),
+                    ),
+                    full_screen=True
                 ),
-                # ---
-                width=1
+                width=1  # outer wrap is full width, controls Row 1 and Row 3
             )
         )
     ),
@@ -524,53 +525,6 @@ def server(input, output, session):
         except Exception as e:
             await chat.append_message({"role": "assistant", "content": f"Connection/Error: {str(e)}"})
 
-
-
-        # try:
-        #     # Note: response = chat_agent.chat(...) is synchronous in chatlas
-        #     response = chat_agent.chat(user_msg)
-        #     ai_text = str(response) # Use str() to get the text content clearly
-
-        #     # Attempt to filter
-        #     try:
-        #         new_df = parks_df.query(ai_text)
-        #         ai_filtered_df.set(new_df)
-        #         await chat.append_message(f"Filtered to **{len(new_df)}** parks using: `{ai_text}`")
-        #     except:
-        #         # If it wasn't a query, just show the text
-        #         await chat.append_message(ai_text)
-                
-        # except Exception as e:
-        #     await chat.append_message(f"Connection Error: {str(e)}")
-    
-    # Commented. Code added towards the end. Code kept for future refernce. Can remove before update.
-    # render function
-    # @render.data_frame
-    # def ai_table_out():
-    #     """Displays the AI-filtered dataframe"""
-    #     return render.DataTable(ai_filtered_df())
-
-    # Commented. Code added towards the end. Code kept for future refernce. Can remove before update.
-
-    # @render_widget
-    # def ai_bar_chart():
-    #     """Visualization 1: Bar chart of Park Sizes"""
-    #     df = ai_filtered_df()
-    #     if df.empty: return px.scatter(title="No data found")
-    #     return px.bar(df, x='Name', y='Hectare', color='NeighbourhoodName', 
-    #                   title="Park Sizes (AI Results)")
-
-    # Commented. Code added towards the end. Code kept for future refernce. Can remove before update.
-    # @render_widget
-    # def ai_washroom_pie():
-    #     """Visualization 2: Pie chart of Washrooms"""
-    #     df = ai_filtered_df()
-    #     if df.empty: return px.scatter(title="No data found")
-    #     counts = df['Washrooms'].value_counts().reset_index()
-    #     counts.columns = ['Status', 'Count']
-    #     return px.pie(counts, names='Status', values='Count', 
-    #                   title="Washroom Availability (AI Results)")
-
     @render.download(filename="vancouver_parks_ai_export.csv")
     def download_ai_data():
         """Download the data currently shown in the AI tab"""
@@ -593,7 +547,12 @@ def server(input, output, session):
                                             ),
         })
         
-        return ui.HTML(display_df.to_html(escape=False, index=False))
+        html_table = display_df.to_html(
+            escape=False,
+            index=False,
+            classes="table table-striped table-hover table-sm")
+        
+        return ui.HTML(html_table)
 
     # AI rendered washroom pie chart
     @render_widget
@@ -640,40 +599,34 @@ def server(input, output, session):
     @render_widget
     def ai_bar_chart():
         df = ai_filtered()
-        
-        if df.empty:
-            tmp = pd.DataFrame({"NeighbourhoodName": ["No results"], "Count": [0], "Color": ["#bdbdbd"]})
-            fig = px.bar(
-                tmp,
-                x="NeighbourhoodName",
-                y="Count",
-                labels={"NeighbourhoodName": "Neighbourhood", "Count": "Total Washrooms"},
-            )
-            fig.update_traces(marker_color=tmp["Color"])
-            return fig
 
-        # washrooms per neighbourhood
+        # calculate total washrooms per neighbourhood across ALL parks (same as washroom_chart)
         all_counts = (
-            df[df["Washrooms"] == "Y"]
+            parks_df[parks_df["Washrooms"] == "Y"]
             .groupby("NeighbourhoodName")
             .size()
             .reset_index(name="Count")
         )
 
         if all_counts.empty:
-            tmp = pd.DataFrame({"NeighbourhoodName": ["No washrooms in results"], "Count": [0], "Color": ["#bdbdbd"]})
-            fig = px.bar(
-                tmp,
-                x="NeighbourhoodName",
-                y="Count",
-                labels={"NeighbourhoodName": "Neighbourhood", "Count": "Total Washrooms"},
-            )
+            tmp = pd.DataFrame({"NeighbourhoodName": ["No results"], "Count": [0], "Color": ["#bdbdbd"]})
+            fig = px.bar(tmp, x="NeighbourhoodName", y="Count",
+                        labels={"NeighbourhoodName": "Neighbourhood", "Count": "Total Washrooms"})
             fig.update_traces(marker_color=tmp["Color"])
+            fig.update_layout(width=1200, height=350)
             return fig
 
-        all_counts["Color"] = "#90caf9"
+        # extract neighbourhoods from AI-filtered results
+        if df.empty:
+            ai_neighbourhoods = set()
+        else:
+            ai_neighbourhoods = set(df["NeighbourhoodName"].unique())
 
-        # average washroom counts for AI results
+        # highlight AI-matched neighbourhoods in green, grey out the rest
+        all_counts["Color"] = all_counts["NeighbourhoodName"].apply(
+            lambda n: "#285F2A" if (not ai_neighbourhoods or n in ai_neighbourhoods) else "#bdbdbd"
+        )
+
         avg = all_counts["Count"].mean()
 
         fig = px.bar(
@@ -693,11 +646,14 @@ def server(input, output, session):
 
         fig.update_layout(
             xaxis_tickangle=-45,
-            xaxis_tickfont=dict(size=6.5),
-            xaxis_title_font=dict(size=12),
-            yaxis_title_font=dict(size=12),
-            )
+            xaxis_tickfont=dict(size=10),
+            xaxis_title_font=dict(size=14),
+            yaxis_title_font=dict(size=14),
+            height=350,
+            width=1200,
+        )
 
         return fig
+        
 
 app = App(app_ui, server)
