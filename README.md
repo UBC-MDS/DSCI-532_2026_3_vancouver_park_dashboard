@@ -20,7 +20,9 @@ Vancouver has many parks, but it can be hard to quickly compare locations, ameni
 - Preview app (testing): [https://019c91e9-b44b-69e7-46d2-7a59b8f8c10d.share.connect.posit.cloud/](https://019c91e9-b44b-69e7-46d2-7a59b8f8c10d.share.connect.posit.cloud/)
 
 ### Demo animation
-![Dashboard demo animation](img/milestone3_demo.gif)
+![Dashboard demo animation](img/demo.gif)
+
+![AI feature demo animation](img/AI_demo.gif)
 
 ## Dataset Information
 This dashboard visualizes the [City of Vancouver's Parks dataset](https://opendata.vancouver.ca/explore/dataset/parks/table/), which contains information on 218 parks throughout the City of Vancouver.
