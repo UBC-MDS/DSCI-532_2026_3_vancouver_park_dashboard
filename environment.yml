@@ -10,5 +10,7 @@ dependencies:
   - shiny
   - shinywidgets
   - plotly
-  - anywidget
   - ipyleaflet
+  - anywidget
+  - folium
+  - python-dotenv
