@@ -14,3 +14,9 @@ dependencies:
   - anywidget
   - folium
   - python-dotenv
+  - libsass
+  - pip
+  - pip:
+      - chatlas
+      - anthropic
+      - shiny[theme]
