@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-08
+
+### Added
+- Integrated LLM/AI features for enhanced user interactions. (#74, #75, #73)
+- Added new dependencies including `anthropic` and `libsass` to support AI functionality and styling improvements. (#77, #78, #80)
+- Created AI-powered features architecture including prompts framework. (#75, #73)
+- Added a Shiny theme to dashboard UI to enhance visual hierarchy and cohesion. (#71, #79).
+
+### Changed
+- Migrated map component from `ipyleaflet` to `folium` for improved performance and compatibility. (#58)
+- Updated environment packages and added `dotenv` for configuration management. (#76, #80)
+- Refactored visualization: converted pie chart to comparison bar chart for better data representation and alignment with visualization best practices. (#67)
+- Enhanced park details display: made URLs clickable in park information popup for improved usability. (#63)
+- Improved dashboard styling and visual hierarchy: made dashboard title more visually prominent. (#66)
+
+### Fixed
+- Resolved map update issues when filtering was applied simultaneously. (#53)
+- Fixed map rendering to properly reflect all active filter selections. (#58)
+
+### Known Issues
+- LLM features require active API configuration via `.env` file for full functionality.
+- Limited automated testing for new AI components.
+
+### Reflection
+Milestone 3 marked a significant pivot toward integrating artificial intelligence capabilities into the dashboard. The addition of LLM/AI features represents an intentional deviation from traditional dashboarding, opting instead to provide intelligent assistance for park exploration and discovery. This decision reflects the evolving landscape of data applications where AI augmentation enhances user experience without replacing core visualization principles.
+
+The refactoring of the pie chart to a comparison bar chart addressed peer feedback about data representation clarity. The migration from `ipyleaflet` to `folium` improved the dashboard's stability and extensibility. Moving forward, the dashboard now balances traditional BI best practices (clear visualizations, intuitive filtering) with modern AI-driven features (natural language assistance, smart recommendations) to create a more engaging park discovery tool.
+
+Note: this entry was prepared with the assistance of GitHub Copilot.
+
 ## [0.2.0] - (2026-02-28)
 
 ### Added
