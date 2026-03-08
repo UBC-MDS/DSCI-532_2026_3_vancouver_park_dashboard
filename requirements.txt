@@ -10,3 +10,4 @@ ipyleaflet==0.20.0
 chatlas==0.15.2
 folium==0.20.0
 python-dotenv==1.2.2
+anthropic==0.84.0
