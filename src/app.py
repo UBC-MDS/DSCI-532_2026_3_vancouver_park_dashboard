@@ -21,9 +21,6 @@ import duckdb
 con = ibis.duckdb.connect()
 parks = con.read_parquet("data/processed/parks.parquet")
 
-# read dataframe
-# parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
-
 # adding neighbourhood best match for random prompts
 VALID_NEIGHBOURHOODS = (
     parks.select("NeighbourhoodName")
@@ -34,6 +31,7 @@ VALID_NEIGHBOURHOODS = (
     .tolist()
 )
 
+# adding the maximum range of park size to be filtered later
 HECTARE_RANGE = (
     parks.agg(
         min_h=_.Hectare.min(),
@@ -340,39 +338,22 @@ def server(input, output, session):
         """
         Filter once for all outputs
         """
-        # # create a copy of the parks data frame to apply filters on
-        # filtered_df = parks_df.copy()
-
-        # # filters the parks data frame for park name search
-        # if input.search():
-        #     filtered_df = filtered_df[filtered_df['Name'].str.contains(input.search(), case=False, na=False)]
-
-        # # filters the parks data frame for neighbourhood selection
-        # if input.neighbourhood():
-        #     filtered_df = filtered_df[filtered_df['NeighbourhoodName'].isin(input.neighbourhood())]
-        
-        # # filters the parks data frame whose Hectare size is within slider range
-        # min_size, max_size = input.size()
-        # filtered_df = filtered_df[
-        #     (filtered_df['Hectare'] >= min_size) &
-        #     (filtered_df['Hectare'] <= max_size)
-        # ]
-        
-        # # filters the parks data frame for facilities selection
-        # for facility in input.facilities():
-        #     filtered_df = filtered_df[filtered_df[facility] == 'Y']
         
         expr = parks
         
+        # filters the parks data frame for park name search
         if input.search():
             expr = expr.filter(_.Name.ilike(f"%{input.search()}%"))
             
+        # filters the parks data frame for neighbourhood selection
         if input.neighbourhood():
             expr = expr.filter(_.NeighbourhoodName.isin(input.neighbourhood()))
             
+        # filters the parks data frame whose Hectare size is within slider range
         min_size, max_size = input.size()
         expr = expr.filter((_.Hectare >= min_size) & (_.Hectare <= max_size))
         
+        # filters the parks data frame for facilities selection
         if input.facilities():
             for facility in input.facilities():
                 expr = expr.filter(_[facility] == "Y")
