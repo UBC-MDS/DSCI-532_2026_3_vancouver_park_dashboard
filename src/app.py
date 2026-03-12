@@ -25,7 +25,23 @@ parks = con.read_parquet("data/processed/parks.parquet")
 # parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
 
 # adding neighbourhood best match for random prompts
-VALID_NEIGHBOURHOODS = sorted(parks_df["NeighbourhoodName"].dropna().unique().tolist())
+VALID_NEIGHBOURHOODS = (
+    parks.select("NeighbourhoodName")
+    .distinct()
+    .execute()['NeighbourhoodName']
+    .dropna()
+    .sort_values()
+    .tolist()
+)
+
+HECTARE_RANGE = (
+    parks.agg(
+        min_h=_.Hectare.min(),
+        max_h=_.Hectare.max() 
+    ).execute()
+)
+HECTARE_MIN = float(HECTARE_RANGE['min_h'][0])
+HECTARE_MAX = float(HECTARE_RANGE['max_h'][0])
 
 def best_match_neighbourhoods(user_neighs, valid_neighs, cutoff=0.6):
     """
@@ -157,15 +173,15 @@ app_ui = ui.page_navbar(
                 ui.input_selectize(
                     "neighbourhood", 
                     "Neighbourhood",
-                    choices=sorted(parks_df['NeighbourhoodName'].dropna().unique().tolist()),
+                    choices=VALID_NEIGHBOURHOODS,
                     selected="Downtown",
                     multiple=True
                 ),
 
                 # Slider for park size
                 ui.input_slider("size", "Hectare", 
-                                parks_df['Hectare'].min(), parks_df['Hectare'].max(), 
-                                [parks_df['Hectare'].min(), parks_df['Hectare'].max()]),
+                                HECTARE_MIN, HECTARE_MAX, 
+                                [HECTARE_MIN, HECTARE_MAX]),
                 
                 # Checkbox group for facilities
                 ui.input_checkbox_group(
@@ -316,6 +332,8 @@ def server(input, output, session):
     # Reactive expression to filter the parks data frame based on user inputs
     
     chat = ui.Chat(id="park_chat") # Moved this here
+    
+    session.on_ended(con.disconnect) # clean up after leaving
 
     @reactive.calc
     def filtered():
@@ -357,9 +375,9 @@ def server(input, output, session):
         
         if input.facilities():
             for facility in input.facilities():
-                expr = expr.filter(expr[facility] == "Y")
+                expr = expr.filter(_[facility] == "Y")
 
-        return expr.execute()
+        return expr
 
     # Added filtered df for Ai output
     ai_filtered_df = reactive.Value(parks_df)
@@ -370,7 +388,7 @@ def server(input, output, session):
     
     @render.ui
     def table_out():
-        df = filtered()
+        df = filtered().execute()
         
         display_df = pd.DataFrame({
             'Name': df['Name'],
@@ -387,7 +405,7 @@ def server(input, output, session):
         
     @render.ui
     def park_map():
-        df = filtered()
+        df = filtered().execute()
         html_str = folium_map(df)
         
         return ui.tags.iframe(
@@ -397,14 +415,19 @@ def server(input, output, session):
         
     @render.text
     def park_count():
-        return f"Park Count: {len(filtered())}"
+        return f"Park Count: {filtered().count().execute()}"
     
     @render_widget
     def washroom_chart():
         df = filtered()
         
         # calculate total number of washrooms per neighbourhood across ALL parks
-        all_counts = parks_df[parks_df['Washrooms'] == 'Y'].groupby('NeighbourhoodName').size().reset_index(name='Count')
+        all_counts = (
+            parks.filter(_.Washrooms == "Y")
+            .group_by("NeighbourhoodName")
+            .size()
+            .execute()
+        )
     
         # extract selected neighbourhoods from the drop-down input
         selected = list(input.neighbourhood())
