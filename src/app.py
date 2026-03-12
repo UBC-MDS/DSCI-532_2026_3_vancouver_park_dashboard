@@ -380,7 +380,7 @@ def server(input, output, session):
         return expr
 
     # Added filtered df for Ai output
-    ai_filtered_df = reactive.Value(parks_df)
+    ai_filtered_df = reactive.Value(parks.execute())
     @reactive.calc
     def ai_filtered():
         return ai_filtered_df()
@@ -428,6 +428,10 @@ def server(input, output, session):
             .size()
             .execute()
         )
+        
+        all_counts = all_counts.rename(columns={
+            "CountStar()": "Count"
+        })
     
         # extract selected neighbourhoods from the drop-down input
         selected = list(input.neighbourhood())
@@ -481,7 +485,7 @@ def server(input, output, session):
         # Reset slider to full range
         ui.update_slider(
             "size",
-            value=[parks_df['Hectare'].min(), parks_df['Hectare'].max()]
+            value=[HECTARE_MIN, HECTARE_MAX]
         )
         # Reset facilities (none selected)
         ui.update_checkbox_group(
@@ -647,10 +651,10 @@ def server(input, output, session):
 
         # calculate total washrooms per neighbourhood across ALL parks (same as washroom_chart)
         all_counts = (
-            parks_df[parks_df["Washrooms"] == "Y"]
-            .groupby("NeighbourhoodName")
-            .size()
-            .reset_index(name="Count")
+            parks.filter(_.Washrooms == "Y")
+            .group_by("NeighbourhoodName")
+            .agg(Count=_.count())
+            .execute()
         )
 
         if all_counts.empty:
