@@ -534,7 +534,7 @@ def server(input, output, session):
                 await chat.append_message({"role": "assistant", "content": f"⚠️ AI did not return valid JSON.\nGot:\n{raw}"})
                 return
 
-            new_df = parks_df.copy()
+            new_df = parks.execute().copy()
 
             # 1) Name contains (case-insensitive)
             name_contains = spec.get("name_contains")
