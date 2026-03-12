@@ -13,6 +13,8 @@ import os
 from dotenv import load_dotenv
 import json
 import difflib
+from plotly.callbacks import Points, InputDeviceState
+import plotly.graph_objects as go
 
 # read dataframe
 parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
@@ -306,10 +308,10 @@ app_ui = ui.page_navbar(
 def server(input, output, session):
     
     # Original Dashboard Reactive Logic
-    # Reactive expression to filter the parks data frame based on user inputs
     
-    chat = ui.Chat(id="park_chat") # Moved this here
+    chat = ui.Chat(id="park_chat")
 
+    # Reactive expression to filter the parks data frame based on user inputs
     @reactive.calc
     def filtered():
         """
@@ -383,11 +385,12 @@ def server(input, output, session):
         
         # calculate total number of washrooms per neighbourhood across ALL parks
         all_counts = parks_df[parks_df['Washrooms'] == 'Y'].groupby('NeighbourhoodName').size().reset_index(name='Count')
+        all_counts = all_counts.sort_values(by='Count', ascending=False) # sort in descending order
     
         # extract selected neighbourhoods from the drop-down input
         selected = list(input.neighbourhood())
-    
-        # color: light red if selected (or none selected), grey otherwise
+        
+        # color: dark green if selected (or none selected), grey otherwise
         all_counts['Color'] = all_counts['NeighbourhoodName'].apply(
             lambda n: '#285F2A' if (not selected or n in selected) else '#bdbdbd'
         )
@@ -396,31 +399,35 @@ def server(input, output, session):
         avg = all_counts['Count'].mean()
     
         # plot a bar chart
-        fig = px.bar(
-            all_counts,
-            x='NeighbourhoodName',
-            y='Count',
-            labels={'NeighbourhoodName': 'Neighbourhood', 'Count': 'Total Washrooms'},
+        fig = go.FigureWidget(
+            data=[go.Bar(
+                x=all_counts['NeighbourhoodName'],
+                y=all_counts['Count'],
+                marker_color=all_counts['Color'],
+            )],
+            layout=go.Layout(
+                xaxis=dict(tickangle=-45, tickfont=dict(size=10), title="Neighbourhood"),
+                yaxis=dict(title="Total Washrooms"),
+                height=260,
+                width=1200,
+                shapes=[dict(
+                    type='line', x0=0, x1=1, xref='paper',
+                    y0=avg, y1=avg, yref='y',
+                    line=dict(dash='dot', color='#ef9a9a')
+                )]
+            )
         )
-    
-        fig.update_traces(marker_color=all_counts['Color'])
-    
-        # add horizontal dotted average line
-        fig.add_hline(
-            y=avg,
-            line_dash="dot",
-            line_color="#ef9a9a"
-        )
-    
-        fig.update_layout(
-            xaxis_tickangle=-45,
-            xaxis_tickfont=dict(size=10),
-            xaxis_title_font=dict(size=14),
-            yaxis_title_font=dict(size=14),
-            height=260,   # slightly smaller than card height
-            width=1200
-        )
-    
+
+        def on_click(trace, points, state):
+            if points.point_inds:
+                neigh = all_counts['NeighbourhoodName'].iloc[points.point_inds[0]]
+                current = list(input.neighbourhood())
+                if neigh not in current:
+                    current.append(neigh)
+                    ui.update_selectize("neighbourhood", selected=current)
+
+        fig.data[0].on_click(on_click)
+        
         return fig
     
     @reactive.effect
