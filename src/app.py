@@ -515,34 +515,43 @@ def server(input, output, session):
                 await chat.append_message({"role": "assistant", "content": f"⚠️ AI did not return valid JSON.\nGot:\n{raw}"})
                 return
 
-            new_df = parks.execute().copy()
+            # new_df = parks.execute().copy()
+            expr = parks
 
             # 1) Name contains (case-insensitive)
             name_contains = spec.get("name_contains")
+            # if name_contains:
+            #     new_df = new_df[new_df["Name"].str.contains(str(name_contains), case=False, na=False)]
             if name_contains:
-                new_df = new_df[new_df["Name"].str.contains(str(name_contains), case=False, na=False)]
+                expr = expr.filter(_.Name.ilike(f"%{name_contains}%"))
 
             # 2) Neighbourhoods (best-match)
             user_neighs = spec.get("neighbourhoods") or []
             matched_neighs = best_match_neighbourhoods(user_neighs, VALID_NEIGHBOURHOODS, cutoff=0.6)
             if matched_neighs:
-                new_df = new_df[new_df["NeighbourhoodName"].isin(matched_neighs)]
+                # new_df = new_df[new_df["NeighbourhoodName"].isin(matched_neighs)]
+                expr = expr.filter(_.NeighbourhoodName.isin(matched_neighs))
 
             # 3) Hectare range
             hmin = spec.get("hectare_min")
             hmax = spec.get("hectare_max")
             if hmin is not None:
-                new_df = new_df[new_df["Hectare"] >= float(hmin)]
+                # new_df = new_df[new_df["Hectare"] >= float(hmin)]
+                expr = expr.filter(_.Hectare >= float(hmin))
             if hmax is not None:
-                new_df = new_df[new_df["Hectare"] <= float(hmax)]
+                # new_df = new_df[new_df["Hectare"] <= float(hmax)]
+                expr = expr.filter(_.Hectare <= float(hmax))
 
             # 4) Flags (Y/N)
             flags = spec.get("flags") or {}
             for col in ["Washrooms", "Facilities", "SpecialFeatures"]:
                 val = flags.get(col)
                 if val in ("Y", "N"):
-                    new_df = new_df[new_df[col] == val]
-
+                    # new_df = new_df[new_df[col] == val]
+                    expr = expr.filter(_[col] == val)
+                    
+            new_df = expr.execute()
+            
             ai_filtered_df.set(new_df)
 
             # Tell user what we matched
