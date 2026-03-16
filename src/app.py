@@ -10,12 +10,14 @@ from folium import Popup
 import chatlas
 from chatlas import ChatAnthropic
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 import json
 import difflib
 
 # read dataframe
-parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
+DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "raw" / "parks.csv"
+parks_df = pd.read_csv(DATA_PATH, sep=';')
 
 # adding neighbourhood best match for random prompts
 VALID_NEIGHBOURHOODS = sorted(parks_df["NeighbourhoodName"].dropna().unique().tolist())
@@ -44,6 +46,30 @@ def best_match_neighbourhoods(user_neighs, valid_neighs, cutoff=0.6):
             seen.add(x)
             out.append(x)
     return out
+
+
+def apply_dashboard_filters(df, search_text="", neighbourhoods=None, size_range=None, facilities=None):
+    filtered_df = df.copy()
+
+    if search_text:
+        filtered_df = filtered_df[
+            filtered_df["Name"].str.contains(str(search_text), case=False, na=False)
+        ]
+
+    if neighbourhoods:
+        filtered_df = filtered_df[filtered_df["NeighbourhoodName"].isin(neighbourhoods)]
+
+    if size_range is not None:
+        min_size, max_size = size_range
+        filtered_df = filtered_df[
+            (filtered_df["Hectare"] >= min_size) &
+            (filtered_df["Hectare"] <= max_size)
+        ]
+
+    for facility in facilities or []:
+        filtered_df = filtered_df[filtered_df[facility] == "Y"]
+
+    return filtered_df
 
 # function to create a folium map with circle markers for each park
 def folium_map(df):
@@ -315,29 +341,13 @@ def server(input, output, session):
         """
         Filter once for all outputs
         """
-        # create a copy of the parks data frame to apply filters on
-        filtered_df = parks_df.copy()
-
-        # filters the parks data frame for park name search
-        if input.search():
-            filtered_df = filtered_df[filtered_df['Name'].str.contains(input.search(), case=False, na=False)]
-
-        # filters the parks data frame for neighbourhood selection
-        if input.neighbourhood():
-            filtered_df = filtered_df[filtered_df['NeighbourhoodName'].isin(input.neighbourhood())]
-        
-        # filters the parks data frame whose Hectare size is within slider range
-        min_size, max_size = input.size()
-        filtered_df = filtered_df[
-            (filtered_df['Hectare'] >= min_size) &
-            (filtered_df['Hectare'] <= max_size)
-        ]
-        
-        # filters the parks data frame for facilities selection
-        for facility in input.facilities():
-            filtered_df = filtered_df[filtered_df[facility] == 'Y']
-
-        return filtered_df
+        return apply_dashboard_filters(
+            parks_df,
+            search_text=input.search(),
+            neighbourhoods=input.neighbourhood(),
+            size_range=input.size(),
+            facilities=input.facilities(),
+        )
 
     # Added filtered df for Ai output
     ai_filtered_df = reactive.Value(parks_df)

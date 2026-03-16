@@ -15,6 +15,7 @@ dependencies:
   - folium
   - python-dotenv
   - libsass
+  - pytest
   - pip
   - pip:
       - chatlas
