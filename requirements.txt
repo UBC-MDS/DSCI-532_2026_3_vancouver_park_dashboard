@@ -1,6 +1,7 @@
 altair==6.0.0
 anthropic==0.84.0
-chatlas==0.15.2
+chatlas>=0.16.0
+querychat==0.5.1 
 duckdb==1.5.0
 folium==0.20.0
 ibis-framework==12.0.0
@@ -14,6 +15,7 @@ python-dotenv==1.2.2
 shiny==1.4.0
 shinywidgets==0.7.1
 uvicorn==0.40.0
+
 
 
 # matplotlib==3.10.8

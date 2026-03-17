@@ -2,27 +2,20 @@ from shiny import App, ui, render, reactive
 from shinywidgets import render_widget, output_widget
 import pandas as pd
 import plotly.express as px
-from ipyleaflet import Map, Marker, WidgetControl
-from ipyleaflet import Popup
-from ipywidgets import HTML
 import folium
 from folium import Popup
-import chatlas
 from chatlas import ChatAnthropic
+from querychat import QueryChat
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-import json
-import difflib
-from plotly.callbacks import Points, InputDeviceState
 import plotly.graph_objects as go
 import ibis
 from ibis import _
-import duckdb
 
 
 # load DuckDB connection
-DATA_PATH = Path(__file__).resolve().parent / "parks.parquet"
+DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "parks.parquet"
 con = ibis.duckdb.connect()
 parks = con.read_parquet(str(DATA_PATH))
 
@@ -45,32 +38,6 @@ HECTARE_RANGE = (
 )
 HECTARE_MIN = float(HECTARE_RANGE['min_h'][0])
 HECTARE_MAX = float(HECTARE_RANGE['max_h'][0])
-
-def best_match_neighbourhoods(user_neighs, valid_neighs, cutoff=0.6):
-    """
-    Map user-provided neighbourhood strings to closest matches in valid_neighs.
-    Returns a list of matched neighbourhood names (duplicates removed).
-    """
-    matched = []
-    for n in user_neighs:
-        if not n:
-            continue
-        n_str = str(n).strip()
-        if n_str in valid_neighs:
-            matched.append(n_str)
-            continue
-        guess = difflib.get_close_matches(n_str, valid_neighs, n=1, cutoff=cutoff)
-        if guess:
-            matched.append(guess[0])
-    # unique, preserve order
-    seen = set()
-    out = []
-    for x in matched:
-        if x not in seen:
-            seen.add(x)
-            out.append(x)
-    return out
-
 
 def apply_dashboard_filters(expr, search_text="", neighbourhoods=None, size_range=None, facilities=None):
     if search_text:
@@ -128,58 +95,57 @@ def folium_map(df):
 
     return fmap.get_root().render()
 
-# Commented this as this became reduntant. Confirm please.
-# def get_vancouver_parks_info():
-#     """
-#     Retrieves the dataset of Vancouver parks. 
-#     Use this to answer questions about park names, hectares, 
-#     washrooms, and neighbourhoods.
-#     """
-#     return parks_df.to_dict(orient="records")
-
-# Set up AI agent with chatlas
-# read the GitHub token from .env file
-# Initialize the chat agent with the appropriate model and token
-load_dotenv() 
+# Load API key before chat model initialization.
+load_dotenv()
 api_key = os.getenv("ANTHROPIC_API_KEY")
 if not api_key:
     raise ValueError("ANTHROPIC_API_KEY not found! Check your .env file.")
 
+anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-0")
+
+parks_df_full = parks.execute()
+
+# chat agent initialization with system prompt to guide user input parsing for filtering the parks dataframe
 chat_agent = ChatAnthropic(
-    model="claude-sonnet-4-0",
+    model=anthropic_model,
     api_key=api_key,
-    system_prompt="""
-    You are helping filter a pandas DataFrame named vancouver_parks.
-    
-    Return ONLY valid JSON (no markdown, no backticks, no explanation).
-    Schema:
-    {
-        "name_contains": string or null,
-        "neighbourhoods": list of strings or [],
-        "hectare_min": number or null,
-        "hectare_max": number or null,
-        "flags": { "Washrooms": "Y"|"N"|null, "Facilities": "Y"|"N"|null, "SpecialFeatures": "Y"|"N"|null }
-    }
+        system_prompt="""
+        You are helping filter a DataFrame of Vancouver parks.
 
-    Rules:
-    - Use only the fields in the schema.
-    - If the user doesn’t specify something, use null (or [] for neighbourhoods).
-    - Strings must be plain values (no regex).
-    - Flags must be only Y, N, or null.
-    - If unsure, set the field to null/[].
+        Return ONLY valid JSON (no markdown, no backticks, no explanation).
+        Schema:
+        {
+            "name_contains": string or null,
+            "neighbourhoods": list of strings or [],
+            "hectare_min": number or null,
+            "hectare_max": number or null,
+            "flags": {
+                "Washrooms": "Y"|"N"|null,
+                "Facilities": "Y"|"N"|null,
+                "SpecialFeatures": "Y"|"N"|null
+            }
+        }
 
-    Examples (JSON only):
-    {"name_contains":"Stanley","neighbourhoods":[],"hectare_min":null,"hectare_max":null,"flags":{"Washrooms":null,"Facilities":null,"SpecialFeatures":null}}
-    {"name_contains":null,"neighbourhoods":["Kitsilano"],"hectare_min":2,"hectare_max":null,"flags":{"Washrooms":"Y","Facilities":null,"SpecialFeatures":null}}
-    """
+        Rules:
+        - If user doesn't specify a field, set null (or [] for neighbourhoods).
+        - flags values must be only Y, N, or null.
+        - Never return keys outside this schema.
+        """,
 )
 
-# register the parks dataframe with the chat agent so it can be queried
-# commented this becasue this became redundant. Confirm please. 
-# chat_agent.register_tool(get_vancouver_parks_info)
+# Initialize QueryChat with the full parks DataFrame and the chat agent
+qc = QueryChat(
+    parks_df_full,
+    "parks",
+    id="park_chat_ui",
+    greeting=(
+        "Hi! Ask me about Vancouver parks and I can filter the dashboard data for you. "
+        "For example: 'parks in Kitsilano larger than 2 hectares with washrooms'."
+    ),
+    client=chat_agent,
+    tools=("update", "query"),
+)
 
-
-# chat = ui.Chat(id="park_chat") # Moved this here
 app_ui = ui.page_navbar(
     ui.nav_spacer(),
     ui.nav_control(
@@ -267,9 +233,7 @@ app_ui = ui.page_navbar(
         ui.layout_sidebar(
             ui.sidebar(
                 ui.markdown("### AI Assistant"),
-                ui.input_text_area("chat_input", "Ask a question about the parks:", 
-                                placeholder="e.g., Show me parks in Kitsilano larger than 2 hectares with washrooms"),
-                ui.input_action_button("ask_ai", "Query Data", class_="btn-primary"),
+                ui.markdown("Ask your question directly in the chat widget."),
                 ui.hr(),
                 ui.download_button("download_ai_data", "Download Filtered Data"),
                 title="AI Controls"
@@ -278,8 +242,8 @@ app_ui = ui.page_navbar(
                 # Row 1: Chat Log full width
                 ui.card(
                     ui.card_header("Chat Log"),
-                    ui.chat_ui("park_chat"),
-                    style="height: 400px; overflow-y: auto;"
+                    qc.ui(id="park_chat_ui"),
+                    style="height: 400px;"
                 ),
                 # Row 2: Table + Chart side by side (nested 50/50)
                 ui.layout_column_wrap(
@@ -352,11 +316,7 @@ app_ui = ui.page_navbar(
 
 
 def server(input, output, session):
-    
     # Original Dashboard Reactive Logic
-    
-    chat = ui.Chat(id="park_chat") # Moved this here
-    
     session.on_ended(con.disconnect) # clean up after leaving
 
     # Reactive expression to filter the parks data frame based on user inputs
@@ -384,22 +344,6 @@ def server(input, output, session):
             expr = expr.filter(_.Name == name)
         return expr
 
-    # Added filtered df for Ai output
-    ai_filtered_df = reactive.Value(parks.limit(0).execute()) # adding the laziness. 
-    @reactive.calc
-    def ai_filtered():
-        return ai_filtered_df()
-    @reactive.calc
-    def final_ai_filtered():
-        # Apply the global selected park filter if an AI table row was clicked
-        expr = ai_filtered_df()
-        name = selected_park_name()
-        if name and not expr.empty: # Only apply if AI found results
-            # The AI df is actually a pandas dataframe already executed inline!
-            return expr[expr['Name'] == name]
-        return expr
-    # ---
-    
     @render.data_frame
     def table_out():
         df = filtered().execute()
@@ -494,7 +438,7 @@ def server(input, output, session):
                 )]
             )
         )
-
+    
         def on_click(trace, points, state):
             if points.point_inds:
                 neigh = all_counts['NeighbourhoodName'].iloc[points.point_inds[0]]
@@ -528,124 +472,48 @@ def server(input, output, session):
             selected=[]
         )
 
-    # AI dashboard
-    # AI Reactive Logic
-    # 1. Setup the Chat object (Native Shiny)
-    
-    # Reactive value to store the dataframe for the AI tab
-    # This keeps it separate from your manual filters
+    qc_vals = qc.server(id="park_chat_ui")
 
-
-    # ai_filtered_df = reactive.Value(parks_df)
-    # chat = ui.Chat(id="park_chat")
-
-    # 2. Trigger AI when the "Query Data" BUTTON is clicked
-    @reactive.effect
-    @reactive.event(input.ask_ai)
-    async def handle_button_query():
-        user_msg = input.chat_input()
-        
-        # Check if the input is actually there
-        if not user_msg or user_msg.strip() == "":
-            await chat.append_message("⚠️ Please type a question before clicking Query.")
-            return
-
-        # Show the user's message in the UI so you can see it working
-        await chat.append_message({"role": "user", "content": user_msg})
-
-        # Send to AI
+    @reactive.calc
+    def ai_filtered_data():
+        df = qc_vals.df()
+        if isinstance(df, pd.DataFrame):
+            return df
+        if hasattr(df, "to_pandas"):
+            return df.to_pandas()
         try:
-            response = chat_agent.chat(user_msg)
-            # raw = str(response).strip().replace("```", "").strip()
-            raw = str(response).strip()
-            if raw.startswith("```"):
-                raw = raw.split("\n", 1)[-1]
-            raw = raw.replace("```", "").strip()
-
-            # Parse JSON from model
-            try:
-                spec = json.loads(raw)
-            except Exception:
-                await chat.append_message({"role": "assistant", "content": f"⚠️ AI did not return valid JSON.\nGot:\n{raw}"})
-                return
-
-            expr = parks
-
-            # 1) Name contains (case-insensitive)
-            name_contains = spec.get("name_contains")
-            if name_contains:
-                expr = expr.filter(_.Name.ilike(f"%{name_contains}%"))
-
-            # 2) Neighbourhoods (best-match)
-            user_neighs = spec.get("neighbourhoods") or []
-            matched_neighs = best_match_neighbourhoods(user_neighs, VALID_NEIGHBOURHOODS, cutoff=0.6)
-            if matched_neighs:
-                expr = expr.filter(_.NeighbourhoodName.isin(matched_neighs))
-
-            # 3) Hectare range
-            hmin = spec.get("hectare_min")
-            hmax = spec.get("hectare_max")
-            if hmin is not None:
-                expr = expr.filter(_.Hectare >= float(hmin))
-            if hmax is not None:
-                expr = expr.filter(_.Hectare <= float(hmax))
-
-            # 4) Flags (Y/N)
-            flags = spec.get("flags") or {}
-            for col in ["Washrooms", "Facilities", "SpecialFeatures"]:
-                val = flags.get(col)
-                if val in ("Y", "N"):
-                    expr = expr.filter(_[col] == val)
-                    
-            new_df = expr.execute()
-            
-            ai_filtered_df.set(new_df)
-
-            # Tell user what we matched
-            msg = f"Filtered to {len(new_df)} parks."
-            if user_neighs and matched_neighs:
-                msg += f"\nMatched neighbourhoods: {matched_neighs}"
-
-            await chat.append_message({"role": "assistant", "content": msg})
-
-        except Exception as e:
-            await chat.append_message({"role": "assistant", "content": f"Connection/Error: {str(e)}"})
+            return pd.DataFrame(df)
+        except Exception:
+            return parks.limit(0).execute()
 
     @render.download(filename="vancouver_parks_ai_export.csv")
     def download_ai_data():
         """Download the data currently shown in the AI tab"""
-        yield ai_filtered_df().to_csv(index=False)
+        yield ai_filtered_data().to_csv(index=False)
 
     # AI rendered table output
     @render.data_frame
     def ai_table_out():
-        df = ai_filtered_df()
-        
+        df = ai_filtered_data()
         if df.empty:
-            return render.DataGrid(pd.DataFrame({"Message": ["No parks match your AI query."]}), width="100%", height="100%")
+            return render.DataGrid(pd.DataFrame({"Message": ["No results found."]}))
         
-        display_df = pd.DataFrame({
-            "Name": df["Name"],
-            "Address": df["StreetNumber"].astype(str) + " " + df["StreetName"],
-            "Neighbourhood": df["NeighbourhoodName"],
-            "URL": df["NeighbourhoodURL"]
-        })
-        
-        return render.DataGrid(display_df, selection_mode="row", width="100%", height="100%")
-
+        display_df = df[["Name", "NeighbourhoodName", "Hectare", "Washrooms"]]
+        return render.DataGrid(display_df, selection_mode="row")
+    
     @reactive.effect
     @reactive.event(input.ai_table_out_selected_rows)
     def _ai_row_clicked():
         idx = input.ai_table_out_selected_rows()
         if idx:
-            df = ai_filtered_df() 
+            df = ai_filtered_data()
             name = df.iloc[idx[0]]['Name']
             selected_park_name.set(name)
 
     # AI rendered washroom pie chart
     @render_widget
     def ai_washroom_pie():
-        df = final_ai_filtered()
+        df = ai_filtered_data()
         
         if df.empty:
             tmp = pd.DataFrame({"Category": ["No results"], "Count": [1]})
@@ -666,7 +534,7 @@ def server(input, output, session):
     # AI rendered map
     @render.ui
     def ai_park_map():
-        df = final_ai_filtered()
+        df = ai_filtered_data()
         html_str = folium_map(df)
         
         return ui.tags.iframe(
@@ -677,7 +545,7 @@ def server(input, output, session):
     # AI rendered text for 'No results'
     @render.text
     def ai_park_count():
-        df = final_ai_filtered()
+        df = ai_filtered_data()
         
         if df.empty:
             return "Park Count: 0 (No results)"
@@ -686,7 +554,7 @@ def server(input, output, session):
     # Ai rendered bar chart
     @render_widget
     def ai_bar_chart():
-        df = final_ai_filtered()
+        df = ai_filtered_data()
 
         target_neighbourhood = None
         if selected_park_name() and not df.empty:
