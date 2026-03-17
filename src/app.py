@@ -192,18 +192,6 @@ app_ui = ui.page_navbar(
             ),
             ui.card(
                 ui.card_header("Park Overview"),
-                ui.layout_column_wrap(
-                    ui.card(ui.card_header("Table of data"), ui.output_data_frame("table_out")),
-                    ui.card(
-                        ui.card_header("Washroom availability"),
-                        ui.tags.div(
-                            output_widget("washroom_chart"),
-                            style="width: 1200px; height: 100%"
-                        ),
-                        style="overflow-x: auto; width: 100%; height:100%"
-                    ),
-                    width=1/2, height=300
-                ),
                 ui.card(
                     ui.card_header("Map"), 
                     ui.tags.div(
@@ -221,6 +209,18 @@ app_ui = ui.page_navbar(
                             ),
                         ),
                     ),
+                ui.layout_column_wrap(
+                    ui.card(ui.card_header("Table of data"), ui.output_data_frame("table_out")),
+                    ui.card(
+                        ui.card_header("Washroom availability"),
+                        ui.tags.div(
+                            output_widget("washroom_chart"),
+                            style="width: 1200px; height: 100%"
+                        ),
+                        style="overflow-x: auto; width: 100%; height:100%"
+                    ),
+                    width=1/2, height=300
+                ),
                     full_screen=True
                 )
             )
@@ -245,24 +245,7 @@ app_ui = ui.page_navbar(
                     qc.ui(id="park_chat_ui"),
                     style="height: 400px;"
                 ),
-                # Row 2: Table + Chart side by side (nested 50/50)
-                ui.layout_column_wrap(
-                    ui.card(
-                        ui.card_header("AI Filtered Data"),
-                        ui.output_data_frame("ai_table_out"),
-                        style="height: 300px; overflow-y: auto;"
-                    ),
-                    ui.card(
-                        ui.card_header("Distribution by Neighbourhood"),
-                        ui.tags.div(
-                            output_widget("ai_bar_chart"),
-                            style="width: 1200px; height: 100%;"
-                        ),
-                        style="height: 300px; overflow-x: auto; overflow-y: hidden;"
-                    ),
-                    width=1/2
-                ),
-                # Row 3: Map full width
+                # Row 2: Map full width
                 ui.card(
                     ui.card_header("AI Map"),
                     ui.tags.div(
@@ -279,6 +262,24 @@ app_ui = ui.page_navbar(
                         ),
                     ),
                     full_screen=True
+                ),
+                
+                # Row 3: Table + Chart side by side (nested 50/50)
+                ui.layout_column_wrap(
+                    ui.card(
+                        ui.card_header("AI Filtered Data"),
+                        ui.output_data_frame("ai_table_out"),
+                        style="height: 300px; overflow-y: auto;"
+                    ),
+                    ui.card(
+                        ui.card_header("Distribution by Neighbourhood"),
+                        ui.tags.div(
+                            output_widget("ai_bar_chart"),
+                            style="width: 1200px; height: 100%;"
+                        ),
+                        style="height: 300px; overflow-x: auto; overflow-y: hidden;"
+                    ),
+                    width=1/2
                 ),
                 width=1  # outer wrap is full width, controls Row 1 and Row 3
             )
