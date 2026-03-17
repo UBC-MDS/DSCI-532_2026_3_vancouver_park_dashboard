@@ -192,18 +192,6 @@ app_ui = ui.page_navbar(
             ),
             ui.card(
                 ui.card_header("Park Overview"),
-                ui.layout_column_wrap(
-                    ui.card(ui.card_header("Table of data"), ui.output_data_frame("table_out")),
-                    ui.card(
-                        ui.card_header("Washroom availability"),
-                        ui.tags.div(
-                            output_widget("washroom_chart"),
-                            style="width: 1200px; height: 100%"
-                        ),
-                        style="overflow-x: auto; width: 100%; height:100%"
-                    ),
-                    width=1/2, height=300
-                ),
                 ui.card(
                     ui.card_header("Map"), 
                     ui.tags.div(
@@ -221,6 +209,18 @@ app_ui = ui.page_navbar(
                             ),
                         ),
                     ),
+                ui.layout_column_wrap(
+                    ui.card(ui.card_header("Table of data"), ui.output_data_frame("table_out")),
+                    ui.card(
+                        ui.card_header("Washroom availability"),
+                        ui.tags.div(
+                            output_widget("washroom_chart"),
+                            style="width: 1200px; height: 100%"
+                        ),
+                        style="overflow-x: auto; width: 100%; height:100%"
+                    ),
+                    width=1/2, height=300
+                ),
                     full_screen=True
                 )
             )
