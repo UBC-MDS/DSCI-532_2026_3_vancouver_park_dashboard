@@ -58,31 +58,49 @@ def apply_dashboard_filters(expr, search_text="", neighbourhoods=None, size_rang
 
 # function to create a folium map with circle markers for each park
 def folium_map(df):
-    
-    # create map centered around downtown Vancouver
-    fmap = folium.Map(
-        location=(49.275, -123.12),
-        zoom_start=12,
-        tiles="OpenStreetMap"
-    )
-    
-    # create a circle marker at each park latitude and longitude
+    # Default center if no valid coords
+    default_location = (49.275, -123.12)
+    default_zoom = 12
+
+    # Filter rows with valid coordinates
+    valid_rows = []
     for _, row in df.iterrows():
         coords = row["GoogleMapDest"]
         if pd.isna(coords):
             continue
+        try:
+            lat, lon = map(float, coords.split(","))
+            valid_rows.append((lat, lon, row))
+        except Exception:
+            continue
 
-        lat_str, lon_str = coords.split(",")
-        lat, lon = float(lat_str), float(lon_str)
+    fmap = folium.Map(
+        location=default_location,
+        zoom_start=default_zoom,
+        tiles="OpenStreetMap"
+    )
 
-        # add a pop-up with the name of the park
+    if valid_rows:
+        lats = [r[0] for r in valid_rows]
+        lons = [r[1] for r in valid_rows]
+
+        if len(valid_rows) == 1:
+            # Single park: center and zoom in closely
+            fmap.location = [lats[0], lons[0]]
+            fmap.zoom_start = 16
+        else:
+            # Multiple parks: fit the map to their bounding box
+            fmap.fit_bounds(
+                [[min(lats), min(lons)], [max(lats), max(lons)]],
+                padding=[30, 30]  # pixels of padding around the bounds
+            )
+
+    for lat, lon, row in valid_rows:
         popup_html = f"""
             <b>{row['Name']}</b><br>
             Neighbourhood: {row['NeighbourhoodName']}<br>
             Size: {row['Hectare']} ha
         """
-        
-        # create circle marker
         folium.CircleMarker(
             location=(lat, lon),
             radius=6,
