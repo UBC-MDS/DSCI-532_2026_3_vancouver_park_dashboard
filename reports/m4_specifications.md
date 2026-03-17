@@ -18,18 +18,6 @@ App Specification: The Vancouver Park Dashboard
 
 **2.2 Component Inventory**
 
-| ID | Type | Shiny widget \/ renderer | Depends on | Job story |
-|----|------|--------------------------|------------|-----------|
-| `search` | Input | `ui.input_text()` | NA | #1 |
-| `neighbourhood` | Input | `ui.input_selectize()` | NA | #2 |
-| `size` | Input | `ui.input_slider()` | NA | #4 |
-| `facilities` | Input | `ui.input_checkbox_group()` | NA | #3 |
-| `filtered_df` | Reactive calc | `@reactive.calc` | `search`, `neighbourhood`, `size`, `facilities` | #1, #2, #3, #4 |
-| `table_out` | Output | `@render.table` | `filtered_df` | #5 |
-| `washroom_chart` | Output | `@render_widget` | `filtered_df` | #3 |
-| `park_map` | Output | `@render_widget` | `filtered_df` | #5 |
-| `count_html` | Output (top right corner of the map) | `@render_widget` | `filtered_df` | #5 |
-
 | ID | Type | Shiny widget / renderer | Depends on | Job story |
 |----|------|--------------------------|------------|-----------|
 | `search` | Input | `ui.input_text()` | NA | #1 |
@@ -38,7 +26,7 @@ App Specification: The Vancouver Park Dashboard
 | `facilities` | Input | `ui.input_checkbox_group()` | NA | #3 |
 | `reset_all` | Input | `ui.input_action_button()` | NA | #1, #2, #3, #4 |
 | `filtered` | Reactive calc | `@reactive.calc` | `search`, `neighbourhood`, `size`, `facilities` | #1, #2, #3, #4 |
-| `selected_park_name` | Reactive value | `reactive.Value` | `table_out`, `ai_table_out`, `reset_all` | #1, #5 |
+| `selected_park_name` | Reactive value | `reactive.Value` | `table_out`, `reset_all` | #1, #5 |
 | `final_filtered` | Reactive calc | `@reactive.calc` | `filtered`, `selected_park_name` | #1, #5 |
 | `table_out` | Output | `@render.data_frame` | `filtered` | #1, #2, #3, #4, #5 |
 | `washroom_chart` | Output / Input | `@render_widget` | `filtered`, `selected_park_name` | #2, #3 |
@@ -69,10 +57,8 @@ flowchart TD
   F --> P2([washroom_chart])
   F --> FF{{final_filtered}}
 
-  P1 --> S{{selected_park_name}}
-  AP1 --> S
+  P1 -- row click --> S{{selected_park_name}}
   P2 -- on_click --> B
-  R --> S
 
   S --> FF
   S --> P2
