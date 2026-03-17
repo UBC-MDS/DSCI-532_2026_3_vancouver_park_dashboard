@@ -20,6 +20,7 @@ import ibis
 from ibis import _
 import duckdb
 
+
 # load DuckDB connection
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "parks.parquet"
 con = ibis.duckdb.connect()
@@ -71,28 +72,22 @@ def best_match_neighbourhoods(user_neighs, valid_neighs, cutoff=0.6):
     return out
 
 
-def apply_dashboard_filters(df, search_text="", neighbourhoods=None, size_range=None, facilities=None):
-    filtered_df = df.copy()
-
+def apply_dashboard_filters(expr, search_text="", neighbourhoods=None, size_range=None, facilities=None):
     if search_text:
-        filtered_df = filtered_df[
-            filtered_df["Name"].str.contains(str(search_text), case=False, na=False)
-        ]
+        expr = expr.filter(_.Name.ilike(f"%{search_text}%"))
 
     if neighbourhoods:
-        filtered_df = filtered_df[filtered_df["NeighbourhoodName"].isin(neighbourhoods)]
+        expr = expr.filter(_.NeighbourhoodName.isin(neighbourhoods))
 
     if size_range is not None:
         min_size, max_size = size_range
-        filtered_df = filtered_df[
-            (filtered_df["Hectare"] >= min_size) &
-            (filtered_df["Hectare"] <= max_size)
-        ]
+        expr = expr.filter((_.Hectare >= min_size) & (_.Hectare <= max_size))
 
-    for facility in facilities or []:
-        filtered_df = filtered_df[filtered_df[facility] == "Y"]
+    if facilities:
+        for facility in facilities:
+            expr = expr.filter(_[facility] == "Y")
 
-    return filtered_df
+    return expr
 
 # function to create a folium map with circle markers for each park
 def folium_map(df):
