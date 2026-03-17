@@ -351,13 +351,9 @@ def server(input, output, session):
     
     # Original Dashboard Reactive Logic
     
-<<<<<<< bar-plot-interactivity
-    chat = ui.Chat(id="park_chat")
-=======
     chat = ui.Chat(id="park_chat") # Moved this here
     
     session.on_ended(con.disconnect) # clean up after leaving
->>>>>>> dev
 
     # Reactive expression to filter the parks data frame based on user inputs
     @reactive.calc
@@ -365,40 +361,16 @@ def server(input, output, session):
         """
         Filter once for all outputs
         """
-<<<<<<< test
         return apply_dashboard_filters(
-            parks_df,
+            parks,
             search_text=input.search(),
             neighbourhoods=input.neighbourhood(),
             size_range=input.size(),
             facilities=input.facilities(),
         )
-=======
-        
-        expr = parks
-        
-        # filters the parks data frame for park name search
-        if input.search():
-            expr = expr.filter(_.Name.ilike(f"%{input.search()}%"))
-            
-        # filters the parks data frame for neighbourhood selection
-        if input.neighbourhood():
-            expr = expr.filter(_.NeighbourhoodName.isin(input.neighbourhood()))
-            
-        # filters the parks data frame whose Hectare size is within slider range
-        min_size, max_size = input.size()
-        expr = expr.filter((_.Hectare >= min_size) & (_.Hectare <= max_size))
-        
-        # filters the parks data frame for facilities selection
-        if input.facilities():
-            for facility in input.facilities():
-                expr = expr.filter(_[facility] == "Y")
-
-        return expr
->>>>>>> dev
 
     # Added filtered df for Ai output
-    ai_filtered_df = reactive.Value(parks.execute())
+    ai_filtered_df = reactive.Value(parks.limit(0).execute()) # adding the laziness. 
     @reactive.calc
     def ai_filtered():
         return ai_filtered_df()
@@ -437,24 +409,14 @@ def server(input, output, session):
     
     @render_widget
     def washroom_chart():
-        df = filtered()
-        
         # calculate total number of washrooms per neighbourhood across ALL parks
-<<<<<<< bar-plot-interactivity
-        all_counts = parks_df[parks_df['Washrooms'] == 'Y'].groupby('NeighbourhoodName').size().reset_index(name='Count')
-        all_counts = all_counts.sort_values(by='Count', ascending=False) # sort in descending order
-=======
         all_counts = (
             parks.filter(_.Washrooms == "Y")
             .group_by("NeighbourhoodName")
-            .size()
+            .agg(Count=_.count())
+            .order_by(_.Count.desc())
             .execute()
         )
-        
-        all_counts = all_counts.rename(columns={
-            "CountStar()": "Count"
-        })
->>>>>>> dev
     
         # extract selected neighbourhoods from the drop-down input
         selected = list(input.neighbourhood())
