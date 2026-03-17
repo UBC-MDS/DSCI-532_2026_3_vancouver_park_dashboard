@@ -16,7 +16,7 @@ shiny==1.5.1
 shinywidgets==0.7.1
 uvicorn==0.40.0
 pyarrow==23.0.1
-
+pyarrow-hotfix==0.7
 
 # matplotlib==3.10.8
 # numpy==2.4.2
