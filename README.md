@@ -24,7 +24,10 @@ Vancouver has many parks, but it can be hard to quickly compare locations, ameni
 
 ### Demo animation
 
+#### 1. Demo of the first tab (main dashboard)
 ![Dashboard demo animation](img/demo.gif)
+
+#### 2. Demo of the second tab (AI feature)
 
 ![AI feature demo animation](img/AI_demo.gif)
 
