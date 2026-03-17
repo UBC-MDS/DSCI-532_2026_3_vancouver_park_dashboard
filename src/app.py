@@ -345,7 +345,7 @@ def server(input, output, session):
             'Name': df['Name'],
             'Address': df['StreetNumber'].astype(str) + ' ' + df['StreetName'],
             'Neighbourhood': df['NeighbourhoodName'],
-            'URL': df['NeighbourhoodURL'] # DataGrid can't map raw html cleanly out of box, so we return the string
+            'URL': [ui.HTML(f'<a href="{url}" target="_blank">{url}</a>') if pd.notna(url) else "" for url in df['NeighbourhoodURL'].tolist()]
             })
         return render.DataGrid(display_df, selection_mode="row", width="100%")
 
@@ -442,7 +442,7 @@ def server(input, output, session):
     @reactive.event(input.reset_all)
     def _reset_filters():
         # Reset selected line in table
-        selected_park_name.set(None)  # ADD this line
+        selected_park_name.set(None)
         # Reset search box
         ui.update_text("search", value="")
         # Reset neighbourhoods (default = Downtown)
