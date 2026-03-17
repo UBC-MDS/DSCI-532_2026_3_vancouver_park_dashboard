@@ -22,7 +22,7 @@ import duckdb
 
 
 # load DuckDB connection
-DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "parks.parquet"
+DATA_PATH = Path(__file__).resolve().parent / "parks.parquet"
 con = ibis.duckdb.connect()
 parks = con.read_parquet(str(DATA_PATH))
 
@@ -181,6 +181,10 @@ chat_agent = ChatAnthropic(
 
 # chat = ui.Chat(id="park_chat") # Moved this here
 app_ui = ui.page_navbar(
+    ui.nav_spacer(),
+    ui.nav_control(
+        ui.input_action_button("clear_selection", "Remove selection(s)", class_="btn-danger text-white", style="background-color: #d9534f; border-color: #d43f3a; padding: 5px 10px; font-weight: 600;")
+    ),
     # original dashboard tab
     ui.nav_panel(
         "Standard Explorer",
@@ -223,7 +227,7 @@ app_ui = ui.page_navbar(
             ui.card(
                 ui.card_header("Park Overview"),
                 ui.layout_column_wrap(
-                    ui.card(ui.card_header("Table of data"), ui.output_table("table_out")),
+                    ui.card(ui.card_header("Table of data"), ui.output_data_frame("table_out")),
                     ui.card(
                         ui.card_header("Washroom availability"),
                         ui.tags.div(
@@ -281,7 +285,7 @@ app_ui = ui.page_navbar(
                 ui.layout_column_wrap(
                     ui.card(
                         ui.card_header("AI Filtered Data"),
-                        ui.output_ui("ai_table_out"),
+                        ui.output_data_frame("ai_table_out"),
                         style="height: 300px; overflow-y: auto;"
                     ),
                     ui.card(
@@ -369,14 +373,34 @@ def server(input, output, session):
             facilities=input.facilities(),
         )
 
+    selected_park_name = reactive.Value(None)
+
+    @reactive.calc
+    def final_filtered():
+        # Apply the global selected park filter if a table row was clicked
+        expr = filtered()
+        name = selected_park_name()
+        if name:
+            expr = expr.filter(_.Name == name)
+        return expr
+
     # Added filtered df for Ai output
     ai_filtered_df = reactive.Value(parks.limit(0).execute()) # adding the laziness. 
     @reactive.calc
     def ai_filtered():
         return ai_filtered_df()
+    @reactive.calc
+    def final_ai_filtered():
+        # Apply the global selected park filter if an AI table row was clicked
+        expr = ai_filtered_df()
+        name = selected_park_name()
+        if name and not expr.empty: # Only apply if AI found results
+            # The AI df is actually a pandas dataframe already executed inline!
+            return expr[expr['Name'] == name]
+        return expr
     # ---
     
-    @render.ui
+    @render.data_frame
     def table_out():
         df = filtered().execute()
         
@@ -384,18 +408,29 @@ def server(input, output, session):
             'Name': df['Name'],
             'Address': df['StreetNumber'].astype(str) + ' ' + df['StreetName'],
             'Neighbourhood': df['NeighbourhoodName'],
-            'URL': df['NeighbourhoodURL'].apply(lambda x: f'<a href="{x}" target="_blank">{x}</a>')
+            'URL': df['NeighbourhoodURL'] # DataGrid can't map raw html cleanly out of box, so we return the string
             })
-        html_table = display_df.to_html(
-            escape=False,
-            index=False,
-            classes="table table-striped table-hover table-sm"
-            )
-        return ui.HTML(html_table)
-        
+        return render.DataGrid(display_df, selection_mode="row", width="100%", height="100%")
+
+    @reactive.effect
+    @reactive.event(input.table_out_selected_rows)
+    def _row_clicked():
+        idx = input.table_out_selected_rows()
+        if idx:
+            # Re-execute just the exact current filter block to match row indexes!
+            df = filtered().execute() 
+            name = df.iloc[idx[0]]['Name']
+            selected_park_name.set(name)
+
+    @reactive.effect
+    @reactive.event(input.clear_selection)
+    def _handle_remove_selection():
+        selected_park_name.set(None)
+        _reset_filters()
+
     @render.ui
     def park_map():
-        df = filtered().execute()
+        df = final_filtered().execute()
         html_str = folium_map(df)
         
         return ui.tags.iframe(
@@ -405,10 +440,15 @@ def server(input, output, session):
         
     @render.text
     def park_count():
-        return f"Park Count: {filtered().count().execute()}"
+        return f"Park Count: {final_filtered().count().execute()}"
     
     @render_widget
     def washroom_chart():
+        # Override chart targeting if a park is selected
+        target_neighbourhood = None
+        if selected_park_name():
+             target_neighbourhood = final_filtered().select("NeighbourhoodName").execute().iloc[0,0]
+
         # calculate total number of washrooms per neighbourhood across ALL parks
         all_counts = (
             parks.filter(_.Washrooms == "Y")
@@ -421,10 +461,16 @@ def server(input, output, session):
         # extract selected neighbourhoods from the drop-down input
         selected = list(input.neighbourhood())
         
-        # color: dark green if selected (or none selected), grey otherwise
-        all_counts['Color'] = all_counts['NeighbourhoodName'].apply(
-            lambda n: '#285F2A' if (not selected or n in selected) else '#bdbdbd'
-        )
+        # If a park is selected via clicking, highlight ONLY its neighbourhood
+        if target_neighbourhood:
+            all_counts['Color'] = all_counts['NeighbourhoodName'].apply(
+                lambda n: '#285F2A' if n == target_neighbourhood else '#bdbdbd'
+            )
+        else:
+            # color: dark green if selected (or none selected), grey otherwise
+            all_counts['Color'] = all_counts['NeighbourhoodName'].apply(
+                lambda n: '#285F2A' if (not selected or n in selected) else '#bdbdbd'
+            )
     
         # average washroom counts across all parks
         avg = all_counts['Count'].mean()
@@ -571,33 +617,35 @@ def server(input, output, session):
         yield ai_filtered_df().to_csv(index=False)
 
     # AI rendered table output
-    @render.ui
+    @render.data_frame
     def ai_table_out():
-        df = ai_filtered()
+        df = ai_filtered_df()
         
         if df.empty:
-            return ui.HTML("<p><b>No parks match your AI query.</b> Try a different prompt.</p>")
+            return render.DataGrid(pd.DataFrame({"Message": ["No parks match your AI query."]}), width="100%", height="100%")
         
         display_df = pd.DataFrame({
             "Name": df["Name"],
             "Address": df["StreetNumber"].astype(str) + " " + df["StreetName"],
             "Neighbourhood": df["NeighbourhoodName"],
-            "URL": df["NeighbourhoodURL"].apply(
-                lambda x: f'<a href="{x}" target="_blank">{x}</a>' if pd.notna(x) else ""
-                                            ),
+            "URL": df["NeighbourhoodURL"]
         })
         
-        html_table = display_df.to_html(
-            escape=False,
-            index=False,
-            classes="table table-striped table-hover table-sm")
-        
-        return ui.HTML(html_table)
+        return render.DataGrid(display_df, selection_mode="row", width="100%", height="100%")
+
+    @reactive.effect
+    @reactive.event(input.ai_table_out_selected_rows)
+    def _ai_row_clicked():
+        idx = input.ai_table_out_selected_rows()
+        if idx:
+            df = ai_filtered_df() 
+            name = df.iloc[idx[0]]['Name']
+            selected_park_name.set(name)
 
     # AI rendered washroom pie chart
     @render_widget
     def ai_washroom_pie():
-        df = ai_filtered()
+        df = final_ai_filtered()
         
         if df.empty:
             tmp = pd.DataFrame({"Category": ["No results"], "Count": [1]})
@@ -618,7 +666,7 @@ def server(input, output, session):
     # AI rendered map
     @render.ui
     def ai_park_map():
-        df = ai_filtered()
+        df = final_ai_filtered()
         html_str = folium_map(df)
         
         return ui.tags.iframe(
@@ -629,7 +677,7 @@ def server(input, output, session):
     # AI rendered text for 'No results'
     @render.text
     def ai_park_count():
-        df = ai_filtered()
+        df = final_ai_filtered()
         
         if df.empty:
             return "Park Count: 0 (No results)"
@@ -638,7 +686,11 @@ def server(input, output, session):
     # Ai rendered bar chart
     @render_widget
     def ai_bar_chart():
-        df = ai_filtered()
+        df = final_ai_filtered()
+
+        target_neighbourhood = None
+        if selected_park_name() and not df.empty:
+            target_neighbourhood = df.iloc[0]['NeighbourhoodName']
 
         # calculate total washrooms per neighbourhood across ALL parks (same as washroom_chart)
         all_counts = (
@@ -663,9 +715,14 @@ def server(input, output, session):
             ai_neighbourhoods = set(df["NeighbourhoodName"].unique())
 
         # highlight AI-matched neighbourhoods in green, grey out the rest
-        all_counts["Color"] = all_counts["NeighbourhoodName"].apply(
-            lambda n: "#285F2A" if (not ai_neighbourhoods or n in ai_neighbourhoods) else "#bdbdbd"
-        )
+        if target_neighbourhood:
+             all_counts["Color"] = all_counts["NeighbourhoodName"].apply(
+                lambda n: "#285F2A" if n == target_neighbourhood else "#bdbdbd"
+            )
+        else:
+            all_counts["Color"] = all_counts["NeighbourhoodName"].apply(
+                lambda n: "#285F2A" if (not ai_neighbourhoods or n in ai_neighbourhoods) else "#bdbdbd"
+            )
 
         avg = all_counts["Count"].mean()
 
