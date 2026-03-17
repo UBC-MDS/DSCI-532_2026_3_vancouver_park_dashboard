@@ -35,7 +35,7 @@ App Specification: The Vancouver Park Dashboard
 | `park_chat_ui` | Input/Output | `QueryChat` | NA | #1, #2, #3, #4, #5 |
 | `ai_filtered_data` | Reactive calc | `@reactive.calc` | `park_chat_ui` | #1, #2, #3, #4, #5 |
 | `ai_table_out` | Output | `@render.data_frame` | `ai_filtered_data` | #1, #2, #3, #4, #5 |
-| `ai_bar_chart` | Output | `@render_widget` | `ai_filtered_data`, `selected_park_name` | #2, #3 |
+| `ai_bar_chart` | Output | `@render_widget` | `ai_filtered_data` | #2, #3 |
 | `ai_park_map` | Output | `@render.ui` | `ai_filtered_data` | #1, #2, #4, #5 |
 | `ai_park_count` | Output (top right of map) | `@render.text` | `ai_filtered_data` | #5 |
 | `download_ai_data` | Output | `@render.download` | `ai_filtered_data` | #1, #2, #3, #4, #5 |
@@ -72,16 +72,16 @@ flowchart TD
   AI --> AP3([ai_park_map])
   AI --> AP4([ai_park_count])
   AI --> AP5([download_ai_data])
-  S --> AP2
 ```
 ------------------------------------------------------------------------
 
 **2.4 Calculation Details**
 
-The only `@reactive.calc` element in our diagram is `filtered_df`.
+There are three `@reactive.calc` elements and one `reactive.Value` in the diagram.
 
-- `filtered_df` depends on these inputs: `search`, `neighbourhood`, `size`, `facilities`.
-- `filtered_df` performs this transformation: filters rows in the original dataframe to the selected neighborhood, size, facilities conditions, and with a name matching the string typed in the search bar.
-- `filtered_df` is consumed by these outputs: `table_out`, `washroom_chart`, `park_map`, `count_html`.
+- `filtered` depends on: `search`, `neighbourhood`, `size`, `facilities`. It filters rows in the parks dataset to match the selected neighbourhood, size range, facility checkboxes, and name search string. It is consumed by: `table_out`, `washroom_chart`, and `final_filtered`. It is reset by `reset_all`.
+- `selected_park_name` is a `reactive.Value` set when a user clicks a row in `table_out`, and cleared by `reset_all`. It is consumed by `final_filtered` and `washroom_chart`.
+- `final_filtered` depends on: `filtered` and `selected_park_name`. It further narrows the filtered results to a single park when one is selected via row click in table_out. It is consumed by: `park_map` and `park_count`.
+- `ai_filtered_data` depends on: `park_chat_ui` (the QueryChat server value). It coerces the AI-filtered result into a pandas DataFrame. It is consumed by: `ai_table_out`, `ai_bar_chart`, `ai_park_map`, `ai_park_count`, `download_ai_data`.
 
 ------------------------------------------------------------------------
