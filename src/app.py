@@ -22,7 +22,7 @@ import duckdb
 
 
 # load DuckDB connection
-DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "parks.parquet"
+DATA_PATH = Path(__file__).resolve().parent / "parks.parquet"
 con = ibis.duckdb.connect()
 parks = con.read_parquet(str(DATA_PATH))
 
