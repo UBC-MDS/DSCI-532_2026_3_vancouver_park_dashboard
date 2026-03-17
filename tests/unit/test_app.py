@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from unittest import mock
 
+import ibis
 import pandas as pd
 import pytest
 
@@ -20,21 +21,18 @@ class DummyChatAnthropic:
 		return "{}"
 
 
-@pytest.fixture(scope="module")
-def app_module():
-	"""Load the dashboard module with a mocked Anthropic client so tests can import it safely."""
-	spec = importlib.util.spec_from_file_location("tested_app", APP_PATH)
-	module = importlib.util.module_from_spec(spec)
+class DummyIbisConnection:
+	def __init__(self, parks_expr):
+		self._parks_expr = parks_expr
 
-	with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False):
-		with mock.patch("chatlas.ChatAnthropic", DummyChatAnthropic):
-			spec.loader.exec_module(module)
+	def read_parquet(self, _path):
+		return self._parks_expr
 
-	return module
+	def disconnect(self):
+		return None
 
 
-@pytest.fixture
-def sample_parks():
+def _seed_df():
 	return pd.DataFrame(
 		[
 			{
@@ -44,6 +42,9 @@ def sample_parks():
 				"Washrooms": "Y",
 				"Facilities": "Y",
 				"SpecialFeatures": "N",
+				"StreetNumber": 120,
+				"StreetName": "Harbour Quay",
+				"NeighbourhoodURL": "https://example.com/downtown",
 				"GoogleMapDest": "49.2901, -123.1207",
 			},
 			{
@@ -53,6 +54,9 @@ def sample_parks():
 				"Washrooms": "Y",
 				"Facilities": "N",
 				"SpecialFeatures": "Y",
+				"StreetNumber": 1800,
+				"StreetName": "Beach Ave",
+				"NeighbourhoodURL": "https://example.com/west-end",
 				"GoogleMapDest": "49.2800, -123.1400",
 			},
 			{
@@ -62,31 +66,64 @@ def sample_parks():
 				"Washrooms": "N",
 				"Facilities": "Y",
 				"SpecialFeatures": "Y",
+				"StreetNumber": 1499,
+				"StreetName": "Arbutus St",
+				"NeighbourhoodURL": "https://example.com/kits",
 				"GoogleMapDest": pd.NA,
 			},
 		]
 	)
 
 
-def test_apply_dashboard_filters_combines_text_neighbourhood_and_facility_filters(app_module, sample_parks):
+@pytest.fixture(scope="module")
+def app_module():
+	"""Load the dashboard module with mocked Anthropic and DuckDB/Ibis connections for isolated tests."""
+	spec = importlib.util.spec_from_file_location("tested_app", APP_PATH)
+	module = importlib.util.module_from_spec(spec)
+
+	con = ibis.duckdb.connect()
+	con.create_table("seed_parks", obj=_seed_df(), temp=True, overwrite=True)
+	dummy_conn = DummyIbisConnection(con.table("seed_parks"))
+
+	with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False):
+		with mock.patch("chatlas.ChatAnthropic", DummyChatAnthropic):
+			with mock.patch("ibis.duckdb.connect", return_value=dummy_conn):
+				spec.loader.exec_module(module)
+
+	con.disconnect()
+	return module
+
+
+@pytest.fixture
+def sample_parks_expr():
+    """Create a temporary DuckDB-backed Ibis table used to test lazy dashboard filters."""
+    con = ibis.duckdb.connect()
+    con.create_table("sample_parks", obj=_seed_df(), temp=True, overwrite=True)
+    try:
+        yield con.table("sample_parks")
+    finally:
+        con.disconnect()
+
+
+def test_apply_dashboard_filters_combines_text_neighbourhood_and_facility_filters(app_module, sample_parks_expr):
 	"""This test verifies that the dashboard keeps only rows matching all selected filters so combined filtering does not silently return the wrong parks."""
 	filtered = app_module.apply_dashboard_filters(
-		sample_parks,
+		sample_parks_expr,
 		search_text="harbour",
 		neighbourhoods=["Downtown", "Kitsilano"],
 		size_range=(0, 2),
 		facilities=["Washrooms", "Facilities"],
-	)
+	).execute()
 
 	assert filtered["Name"].tolist() == ["Harbour Green Park"]
 
 
-def test_apply_dashboard_filters_uses_inclusive_hectare_boundaries(app_module, sample_parks):
+def test_apply_dashboard_filters_uses_inclusive_hectare_boundaries(app_module, sample_parks_expr):
 	"""This test verifies that parks exactly on the slider bounds are retained because changing that boundary rule would make the dashboard disagree with its UI."""
 	filtered = app_module.apply_dashboard_filters(
-		sample_parks,
+		sample_parks_expr,
 		size_range=(2.5, 3.0),
-	)
+	).execute()
 
 	assert filtered["Name"].tolist() == ["Sunset Beach Park", "Kits Beach Park"]
 
@@ -101,9 +138,9 @@ def test_best_match_neighbourhoods_returns_unique_fuzzy_matches(app_module):
 	assert matched == ["Downtown", "Kitsilano"]
 
 
-def test_folium_map_skips_rows_without_coordinates(app_module, sample_parks):
+def test_folium_map_skips_rows_without_coordinates(app_module, sample_parks_expr):
 	"""This test verifies that the map only renders parks with coordinates because missing-location rows should not create broken markers or invalid map HTML."""
-	html = app_module.folium_map(sample_parks)
+	html = app_module.folium_map(sample_parks_expr.execute())
 
 	assert "Harbour Green Park" in html
 	assert "Sunset Beach Park" in html
