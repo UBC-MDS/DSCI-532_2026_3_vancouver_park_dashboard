@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-17
+
+### Added
+- Interactive bar chart output with click-to-filter functionality for washroom distribution visualization. (#92)
+- Automatic map zoom feature that focuses on selected parks when filters are applied. (#121)
+
+### Changed
+- Changed functionality of "reset all filters" button to include resetting the selections made on the bar chart and table of data. (#124)
+- Improved Standard Explorer & AI bar chart presentation with descending order sorting. (#124)
+
+### Fixed
+- Fixed table and bar chart layout issues in the Standard Explorer to properly fit within UI cards. (#124)
+- Removed unused AI pie chart code. (#124)
+- **Feedback prioritization issue link:** #97
+
+### Known Issues
+
+### Release Highlight: Interactive Bar Chart for Facility Discovery
+
+The dashboard now features an interactive bar chart visualization where users can directly click on bars representing washroom availability by neighborhood. This click-to-filter functionality seamlessly integrates with the existing filter system, allowing neighborhoods to be added to the active filter selection through intuitive chart interaction. This enhancement improves the discoverability of parks with specific facilities and provides an alternative interaction pattern to traditional dropdown menus.
+
+- **Option chosen:** Component click event interaction
+- **PR:** #92
+- **Why this option over the others:** We chose the interactive bar chart over other options because it delivers the most direct value to our target user in the Standard Explorer tab. Option A (QueryChat Customization) would improve the AI tab experience, but based on our user needs, we think that park discovery based on amenities is better suited to direct visual exploration than natural language querying — users looking for "a park with washrooms nearby" are more likely to scan a chart than type a question. Options B (Persistent LLM Logging) and C (Custom RAG Knowledge Base) both require significant backend infrastructure and domain knowledge curation respectively, with benefits that are indirect and harder to validate within the scope of this milestone. The bar chart interaction, by contrast, required no external dependencies, integrates cleanly with the existing Shiny reactivity graph by writing directly to the `neighbourhood` input via `ui.update_selectize()`, and closes a genuine UX gap: previously, the washroom chart was read-only, meaning users had to mentally note which neighbourhoods had high washroom availability and then manually re-enter them in the dropdown. The click-to-filter feature collapses that two-step process into one, making facility-based park discovery faster and more intuitive.
+
+We chose the component click event interaction option and implemented an interactive bar chart and table row selection. We chose to implement these over other options because they deliver the most direct value to our target user in the Standard Explorer tab. Together, these two interactions form a cohesive workflow: users can click a bar in the washroom chart to filter by neighbourhood, then click a specific park in the table to zoom the map to its exact location. Option A (QueryChat Customization) would improve the AI tab experience, but based on our user needs, we think that park discovery based on amenities is better suited to direct visual exploration than natural language querying — users looking for "a park with washrooms nearby" are more likely to scan a chart than type a question. Options B (Persistent LLM Logging) and C (Custom RAG Knowledge Base) both require significant backend infrastructure and domain knowledge curation respectively, with benefits that are indirect and harder to validate within the scope of this milestone. We believe that both interactions that we implemented help close a genuine UX gap. Previously, the washroom chart was read-only and the map always showed all filtered parks at once, meaning users had to mentally cross-reference chart and map to find a specific park. The new interactions collapse that multi-step process into a single fluid workflow and allows the user to better explore the relationship between park amenities and locations.
+
+### Collaboration
+
+- **CONTRIBUTING.md:** Updates pending for M4 retrospective and collaboration norms.
+- **M3 retrospective:** Focus shifted to refining user interactions and improving component layouts based on M3 feedback.
+- **M4:** Emphasis on enhancing interactivity, optimizing layouts, and implementing automatic map behavior for better user experience.
+
+### Reflection
+
 ## [0.3.0] - 2026-03-08
 
 ### Added
