@@ -15,7 +15,7 @@ python-dotenv==1.2.2
 shiny==1.5.1
 shinywidgets==0.7.1
 uvicorn==0.40.0
-
+pyarrow==23.0.1
 
 
 # matplotlib==3.10.8
