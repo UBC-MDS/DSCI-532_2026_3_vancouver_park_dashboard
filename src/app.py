@@ -2,9 +2,6 @@ from shiny import App, ui, render, reactive
 from shinywidgets import render_widget, output_widget
 import pandas as pd
 import plotly.express as px
-from ipyleaflet import Map, Marker, WidgetControl
-from ipyleaflet import Popup
-from ipywidgets import HTML
 import folium
 from folium import Popup
 from chatlas import ChatAnthropic
@@ -12,13 +9,9 @@ from querychat import QueryChat
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-import json
-import difflib
-from plotly.callbacks import Points, InputDeviceState
 import plotly.graph_objects as go
 import ibis
 from ibis import _
-import duckdb
 
 
 # load DuckDB connection
@@ -45,32 +38,6 @@ HECTARE_RANGE = (
 )
 HECTARE_MIN = float(HECTARE_RANGE['min_h'][0])
 HECTARE_MAX = float(HECTARE_RANGE['max_h'][0])
-
-def best_match_neighbourhoods(user_neighs, valid_neighs, cutoff=0.6):
-    """
-    Map user-provided neighbourhood strings to closest matches in valid_neighs.
-    Returns a list of matched neighbourhood names (duplicates removed).
-    """
-    matched = []
-    for n in user_neighs:
-        if not n:
-            continue
-        n_str = str(n).strip()
-        if n_str in valid_neighs:
-            matched.append(n_str)
-            continue
-        guess = difflib.get_close_matches(n_str, valid_neighs, n=1, cutoff=cutoff)
-        if guess:
-            matched.append(guess[0])
-    # unique, preserve order
-    seen = set()
-    out = []
-    for x in matched:
-        if x not in seen:
-            seen.add(x)
-            out.append(x)
-    return out
-
 
 def apply_dashboard_filters(expr, search_text="", neighbourhoods=None, size_range=None, facilities=None):
     if search_text:
@@ -138,6 +105,7 @@ anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-0")
 
 parks_df_full = parks.execute()
 
+# chat agent initialization with system prompt to guide user input parsing for filtering the parks dataframe
 chat_agent = ChatAnthropic(
     model=anthropic_model,
     api_key=api_key,
@@ -165,6 +133,7 @@ chat_agent = ChatAnthropic(
         """,
 )
 
+# Initialize QueryChat with the full parks DataFrame and the chat agent
 qc = QueryChat(
     parks_df_full,
     "parks",
@@ -176,55 +145,7 @@ qc = QueryChat(
     client=chat_agent,
     tools=("update", "query"),
 )
-# Commented this as this became reduntant. Confirm please.
-# def get_vancouver_parks_info():
-#     """
-#     Retrieves the dataset of Vancouver parks. 
-#     Use this to answer questions about park names, hectares, 
-#     washrooms, and neighbourhoods.
-#     """
-#     return parks_df.to_dict(orient="records")
 
-# Set up AI agent with chatlas
-# api_key = os.getenv("ANTHROPIC_API_KEY")
-# if not api_key:
-#     raise ValueError("ANTHROPIC_API_KEY not found! Check your .env file.")
-
-# chat_agent = ChatAnthropic(
-#     model="claude-sonnet-4-0",
-#     api_key=api_key,
-#     system_prompt="""
-#     You are helping filter a pandas DataFrame named vancouver_parks.
-    
-#     Return ONLY valid JSON (no markdown, no backticks, no explanation).
-#     Schema:
-#     {
-#         "name_contains": string or null,
-#         "neighbourhoods": list of strings or [],
-#         "hectare_min": number or null,
-#         "hectare_max": number or null,
-#         "flags": { "Washrooms": "Y"|"N"|null, "Facilities": "Y"|"N"|null, "SpecialFeatures": "Y"|"N"|null }
-#     }
-
-#     Rules:
-#     - Use only the fields in the schema.
-#     - If the user doesn’t specify something, use null (or [] for neighbourhoods).
-#     - Strings must be plain values (no regex).
-#     - Flags must be only Y, N, or null.
-#     - If unsure, set the field to null/[].
-
-#     Examples (JSON only):
-#     {"name_contains":"Stanley","neighbourhoods":[],"hectare_min":null,"hectare_max":null,"flags":{"Washrooms":null,"Facilities":null,"SpecialFeatures":null}}
-#     {"name_contains":null,"neighbourhoods":["Kitsilano"],"hectare_min":2,"hectare_max":null,"flags":{"Washrooms":"Y","Facilities":null,"SpecialFeatures":null}}
-#     """
-# )
-
-# register the parks dataframe with the chat agent so it can be queried
-# commented this becasue this became redundant. Confirm please. 
-# chat_agent.register_tool(get_vancouver_parks_info)
-
-
-# chat = ui.Chat(id="park_chat") # Moved this here
 app_ui = ui.page_navbar(
     ui.nav_spacer(),
     ui.nav_control(
@@ -395,9 +316,7 @@ app_ui = ui.page_navbar(
 
 
 def server(input, output, session):
-    
     # Original Dashboard Reactive Logic
-    
     session.on_ended(con.disconnect) # clean up after leaving
 
     # Reactive expression to filter the parks data frame based on user inputs
@@ -519,7 +438,7 @@ def server(input, output, session):
                 )]
             )
         )
-
+    
         def on_click(trace, points, state):
             if points.point_inds:
                 neigh = all_counts['NeighbourhoodName'].iloc[points.point_inds[0]]
