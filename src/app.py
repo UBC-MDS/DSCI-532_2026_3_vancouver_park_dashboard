@@ -22,7 +22,7 @@ import duckdb
 
 
 # load DuckDB connection
-DATA_PATH = Path(__file__).resolve().parent / "parks.parquet"
+DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "parks.parquet"
 con = ibis.duckdb.connect()
 parks = con.read_parquet(str(DATA_PATH))
 
@@ -181,10 +181,6 @@ chat_agent = ChatAnthropic(
 
 # chat = ui.Chat(id="park_chat") # Moved this here
 app_ui = ui.page_navbar(
-    ui.nav_spacer(),
-    ui.nav_control(
-        ui.input_action_button("clear_selection", "Remove selection(s)", class_="btn-danger text-white", style="background-color: #d9534f; border-color: #d43f3a; padding: 5px 10px; font-weight: 600;")
-    ),
     # original dashboard tab
     ui.nav_panel(
         "Standard Explorer",
@@ -263,42 +259,39 @@ app_ui = ui.page_navbar(
     
     # AI power tab
     ui.nav_panel(
-        "AI Query Chat",
-        ui.layout_sidebar(
-            ui.sidebar(
-                ui.markdown("### AI Assistant"),
-                ui.input_text_area("chat_input", "Ask a question about the parks:", 
-                                placeholder="e.g., Show me parks in Kitsilano larger than 2 hectares with washrooms"),
-                ui.input_action_button("ask_ai", "Query Data", class_="btn-primary"),
-                ui.hr(),
-                ui.download_button("download_ai_data", "Download Filtered Data"),
-                title="AI Controls"
+    "AI Query Chat",
+    ui.layout_sidebar(
+        ui.sidebar(
+            ui.markdown("### AI Assistant"),
+            ui.input_text_area(
+                "chat_input",
+                "Ask a question about the parks:",
+                placeholder="e.g., Show me parks in Kitsilano larger than 2 hectares with washrooms",
             ),
-            ui.layout_column_wrap(
-                # Row 1: Chat Log full width
+            ui.input_action_button("ask_ai", "Query Data", class_="btn-primary"),
+            ui.output_ui("ai_sidebar_output"),
+            ui.hr(),
+            ui.download_button("download_ai_data", "Download Filtered Data"),
+            title="AI Controls",
+        ),
+        ui.div(
+            ui.layout_columns(
                 ui.card(
-                    ui.card_header("Chat Log"),
-                    ui.chat_ui("park_chat"),
-                    style="height: 400px; overflow-y: auto;"
+                    ui.card_header("AI Filtered Data"),
+                    ui.output_data_frame("ai_table_out"),
+                    style="height: 300px; overflow-y: auto;",
                 ),
-                # Row 2: Table + Chart side by side (nested 50/50)
-                ui.layout_column_wrap(
-                    ui.card(
-                        ui.card_header("AI Filtered Data"),
-                        ui.output_data_frame("ai_table_out"),
-                        style="height: 300px; overflow-y: auto;"
+                ui.card(
+                    ui.card_header("Distribution by Neighbourhood"),
+                    ui.tags.div(
+                        output_widget("ai_bar_chart"),
+                        style="width: 100%; height: 100%;",
                     ),
-                    ui.card(
-                        ui.card_header("Distribution by Neighbourhood"),
-                        ui.tags.div(
-                            output_widget("ai_bar_chart"),
-                            style="width: 1200px; height: 100%;"
-                        ),
-                        style="height: 300px; overflow-x: auto; overflow-y: hidden;"
-                    ),
-                    width=1/2
+                    style="height: 300px; overflow-x: auto; overflow-y: hidden;",
                 ),
-                # Row 3: Map full width
+                col_widths=(6, 6),
+            ),
+            ui.layout_columns(
                 ui.card(
                     ui.card_header("AI Map"),
                     ui.tags.div(
@@ -314,11 +307,17 @@ app_ui = ui.page_navbar(
                             ),
                         ),
                     ),
-                    full_screen=True
+                    full_screen=True,
                 ),
-                width=1  # outer wrap is full width, controls Row 1 and Row 3
-            )
-        )
+                col_widths=(12,),
+            ),
+        ),
+    ),
+),
+
+    ui.nav_spacer(),
+    ui.nav_control(
+        ui.input_action_button("clear_selection", "Remove selection(s)", class_="btn-danger text-white", style="background-color: #d9534f; border-color: #d43f3a; padding: 5px 10px; font-weight: 600;")
     ),
     title="Vancouver Park Dashboard",
     id="main_tabs",
@@ -355,7 +354,7 @@ def server(input, output, session):
     
     # Original Dashboard Reactive Logic
     
-    chat = ui.Chat(id="park_chat") # Moved this here
+    # chat = ui.Chat(id="park_chat") # Moved this here
     
     session.on_ended(con.disconnect) # clean up after leaving
 
@@ -371,6 +370,19 @@ def server(input, output, session):
             neighbourhoods=input.neighbourhood(),
             size_range=input.size(),
             facilities=input.facilities(),
+        )
+
+    @reactive.calc
+    def geo_filtered():
+        """
+        Filter that ignores facilities, specifically used for the neighbourhood bar chart.
+        """
+        return apply_dashboard_filters(
+            parks,
+            search_text=input.search(),
+            neighbourhoods=input.neighbourhood(),
+            size_range=input.size(),
+            facilities=None,
         )
 
     selected_park_name = reactive.Value(None)
@@ -408,7 +420,7 @@ def server(input, output, session):
             'Name': df['Name'],
             'Address': df['StreetNumber'].astype(str) + ' ' + df['StreetName'],
             'Neighbourhood': df['NeighbourhoodName'],
-            'URL': df['NeighbourhoodURL'] # DataGrid can't map raw html cleanly out of box, so we return the string
+            'URL': [ui.HTML(f'<a href="{url}" target="_blank">{url}</a>') if pd.notna(url) else "" for url in df['NeighbourhoodURL'].tolist()]
             })
         return render.DataGrid(display_df, selection_mode="row", width="100%", height="100%")
 
@@ -449,9 +461,15 @@ def server(input, output, session):
         if selected_park_name():
              target_neighbourhood = final_filtered().select("NeighbourhoodName").execute().iloc[0,0]
 
-        # calculate total number of washrooms per neighbourhood across ALL parks
+        # calculate total number of washrooms per neighbourhood based on GEO-FILTERS only
+        df = geo_filtered().execute()
+        if df.empty:
+            tmp = pd.DataFrame({"NeighbourhoodName": ["No results"], "Count": [0], "Color": ["#bdbdbd"]})
+            fig = go.FigureWidget(data=[go.Bar(x=["No results"], y=[0])])
+            return fig
+
         all_counts = (
-            parks.filter(_.Washrooms == "Y")
+            geo_filtered().filter(_.Washrooms == "Y")
             .group_by("NeighbourhoodName")
             .agg(Count=_.count())
             .order_by(_.Count.desc())
@@ -534,6 +552,12 @@ def server(input, output, session):
     
     # Reactive value to store the dataframe for the AI tab
     # This keeps it separate from your manual filters
+    ai_status_message = reactive.Value("No query executed yet.")
+
+    @render.ui
+    def ai_sidebar_output():
+        # This will render directly into the sidebar slot!
+        return ui.markdown(ai_status_message())
 
 
     # ai_filtered_df = reactive.Value(parks_df)
@@ -547,11 +571,11 @@ def server(input, output, session):
         
         # Check if the input is actually there
         if not user_msg or user_msg.strip() == "":
-            await chat.append_message("⚠️ Please type a question before clicking Query.")
+            ai_status_message.set("⚠️ Please type a question before clicking Query.")
             return
 
         # Show the user's message in the UI so you can see it working
-        await chat.append_message({"role": "user", "content": user_msg})
+        ai_status_message.set("⏳ Querying Claude. Please wait...")
 
         # Send to AI
         try:
@@ -566,7 +590,7 @@ def server(input, output, session):
             try:
                 spec = json.loads(raw)
             except Exception:
-                await chat.append_message({"role": "assistant", "content": f"⚠️ AI did not return valid JSON.\nGot:\n{raw}"})
+                ai_status_message.set(f"⚠️ **Error:** AI did not return valid JSON.\n```\n{raw}\n```")
                 return
 
             expr = parks
@@ -602,14 +626,17 @@ def server(input, output, session):
             ai_filtered_df.set(new_df)
 
             # Tell user what we matched
-            msg = f"Filtered to {len(new_df)} parks."
+            msg = f"**Success!** Filtered to {len(new_df)} parks."
             if user_neighs and matched_neighs:
-                msg += f"\nMatched neighbourhoods: {matched_neighs}"
+                msg += f"\nMatched neighbourhoods: `{matched_neighs}`"
+                
+            # Expose the SQL payload that DuckDB ultimately executed
+            msg += f"\n\n**Generated JSON Filter:**\n```json\n{json.dumps(spec, indent=2)}\n```"
 
-            await chat.append_message({"role": "assistant", "content": msg})
+            ai_status_message.set(msg)
 
         except Exception as e:
-            await chat.append_message({"role": "assistant", "content": f"Connection/Error: {str(e)}"})
+            ai_status_message.set(f"⚠️ **Connection/Error:** {str(e)}")
 
     @render.download(filename="vancouver_parks_ai_export.csv")
     def download_ai_data():
@@ -628,7 +655,7 @@ def server(input, output, session):
             "Name": df["Name"],
             "Address": df["StreetNumber"].astype(str) + " " + df["StreetName"],
             "Neighbourhood": df["NeighbourhoodName"],
-            "URL": df["NeighbourhoodURL"]
+            "URL": [ui.HTML(f'<a href="{url}" target="_blank">{url}</a>') if pd.notna(url) else "" for url in df['NeighbourhoodURL'].tolist()]
         })
         
         return render.DataGrid(display_df, selection_mode="row", width="100%", height="100%")
