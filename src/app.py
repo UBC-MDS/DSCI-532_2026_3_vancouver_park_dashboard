@@ -165,85 +165,77 @@ qc = QueryChat(
 )
 
 app_ui = ui.page_navbar(
-    ui.nav_spacer(),
-    ui.nav_control(
-        ui.input_action_button("clear_selection", "Remove selection(s)", class_="btn-danger text-white", style="background-color: #d9534f; border-color: #d43f3a; padding: 5px 10px; font-weight: 600;")
-    ),
-    # original dashboard tab
-    ui.nav_panel(
-        "Standard Explorer",
-        ui.layout_sidebar(
-            # Sidebar with filters
-            ui.sidebar(
-                # Search input for parks
-                ui.input_text("search", "Search Park by Name", placeholder="Enter park name..."),
-                
-                # Dropdown for neighbourhood selection
-                ui.input_selectize(
-                    "neighbourhood", 
-                    "Neighbourhood",
-                    choices=VALID_NEIGHBOURHOODS,
-                    selected="Downtown",
-                    multiple=True
-                ),
-
-                # Slider for park size
-                ui.input_slider("size", "Hectare", 
-                                HECTARE_MIN, HECTARE_MAX, 
-                                [HECTARE_MIN, HECTARE_MAX]),
-                
-                # Checkbox group for facilities
-                ui.input_checkbox_group(
-                    "facilities", 
-                    "Select Facilities",
-                    {
-                        "Washrooms": "Washrooms", 
-                        "Facilities": "Facilities", 
-                        "SpecialFeatures": "Special Features"
-                    },
-                    selected=[]
-                ),
-                ui.markdown("Facilties may include playgrounds, soccer fields, tennis courts or field houses."),
-                ui.markdown("Special Features may include exercise stations, gardens, picnic benches or perimeter walking paths."),
-                ui.input_action_button("reset_all", "Reset all filters"),
-                title="Filters",
+ui.nav_panel(
+    "Standard Explorer",
+    ui.layout_sidebar(
+        ui.sidebar(
+            ui.input_action_button("reset_all", "Reset all filters"),
+            ui.input_text("search", "Search Park by Name", placeholder="Enter park name..."),
+            ui.input_selectize(
+                "neighbourhood", 
+                "Neighbourhood",
+                choices=VALID_NEIGHBOURHOODS,
+                selected="Downtown",
+                multiple=True
             ),
+            ui.input_slider("size", "Hectare", 
+                            HECTARE_MIN, HECTARE_MAX, 
+                            [HECTARE_MIN, HECTARE_MAX]),
+            ui.input_checkbox_group(
+                "facilities", 
+                "Select Facilities",
+                {
+                    "Washrooms": "Washrooms", 
+                    "Facilities": "Facilities", 
+                    "SpecialFeatures": "Special Features"
+                },
+                selected=[]
+            ),
+            ui.markdown("Facilties may include playgrounds, soccer fields, tennis courts or field houses."),
+            ui.markdown("Special Features may include exercise stations, gardens, picnic benches or perimeter walking paths."),
+            title="Filters",
+        ),
+        # Flat layout_column_wrap, same structure as AI tab
+        ui.layout_column_wrap(
+            # Row 1: Map full width
             ui.card(
-                ui.card_header("Park Overview"),
-                ui.card(
-                    ui.card_header("Map"), 
+                ui.card_header("Map"), 
+                ui.tags.div(
+                    {"style": "position: relative;"},
+                    ui.output_ui("park_map"),
                     ui.tags.div(
-                        {"style": "position: relative;"},
-                        # create map output
-                        ui.output_ui("park_map"),
-                        ui.tags.div(
-                            # add park count widget
-                            ui.output_text("park_count"),
-                            style=(
-                                "position: absolute; top: 12px; right: 12px; z-index: 1000; "
-                                "background: rgba(255, 255, 255, 0.8); border-radius: 7px; "
-                                "padding: 6px 10px; font-weight: 600; "
-                                "box-shadow: 0 1px 4px rgba(0,0,0,0.15);"
-                            ),
+                        ui.output_text("park_count"),
+                        style=(
+                            "position: absolute; top: 12px; right: 12px; z-index: 1000; "
+                            "background: rgba(255, 255, 255, 0.8); border-radius: 7px; "
+                            "padding: 6px 10px; font-weight: 600; "
+                            "box-shadow: 0 1px 4px rgba(0,0,0,0.15);"
                         ),
                     ),
-                ui.layout_column_wrap(
-                    ui.card(ui.card_header("Table of data"), ui.output_data_frame("table_out")),
-                    ui.card(
-                        ui.card_header("Washroom availability"),
-                        ui.tags.div(
-                            output_widget("washroom_chart"),
-                            style="width: 1200px; height: 100%"
-                        ),
-                        style="overflow-x: auto; width: 100%; height:100%"
-                    ),
-                    width=1/2, height=300
                 ),
-                    full_screen=True
-                )
-            )
+                full_screen=True
+            ),
+            # Row 2: Table + Chart side by side
+            ui.layout_column_wrap(
+                ui.card(
+                    ui.card_header("Table of data"),
+                    ui.output_data_frame("table_out"),
+                    style="height: 300px; overflow-y: auto;"
+                ),
+                ui.card(
+                    ui.card_header("Washroom Distribution by Neighbourhood"),
+                    ui.tags.div(
+                        output_widget("washroom_chart"),
+                        style="width: 1200px; height: 100%;"
+                    ),
+                    style="height: 300px; overflow-x: auto; overflow-y: hidden;"
+                ),
+                width=1/2
+            ),
+            width=1
         )
-    ),
+    )
+),
     
     # AI power tab
     ui.nav_panel(
@@ -290,7 +282,7 @@ app_ui = ui.page_navbar(
                         style="height: 300px; overflow-y: auto;"
                     ),
                     ui.card(
-                        ui.card_header("Distribution by Neighbourhood"),
+                        ui.card_header("Washroom Distribution by Neighbourhood"),
                         ui.tags.div(
                             output_widget("ai_bar_chart"),
                             style="width: 1200px; height: 100%;"
@@ -371,9 +363,9 @@ def server(input, output, session):
             'Name': df['Name'],
             'Address': df['StreetNumber'].astype(str) + ' ' + df['StreetName'],
             'Neighbourhood': df['NeighbourhoodName'],
-            'URL': df['NeighbourhoodURL'] # DataGrid can't map raw html cleanly out of box, so we return the string
+            'URL': [ui.HTML(f'<a href="{url}" target="_blank">{url}</a>') if pd.notna(url) else "" for url in df['NeighbourhoodURL'].tolist()]
             })
-        return render.DataGrid(display_df, selection_mode="row", width="100%", height="100%")
+        return render.DataGrid(display_df, selection_mode="row", width="100%")
 
     @reactive.effect
     @reactive.event(input.table_out_selected_rows)
@@ -384,12 +376,6 @@ def server(input, output, session):
             df = filtered().execute() 
             name = df.iloc[idx[0]]['Name']
             selected_park_name.set(name)
-
-    @reactive.effect
-    @reactive.event(input.clear_selection)
-    def _handle_remove_selection():
-        selected_park_name.set(None)
-        _reset_filters()
 
     @render.ui
     def park_map():
@@ -448,7 +434,7 @@ def server(input, output, session):
             layout=go.Layout(
                 xaxis=dict(tickangle=-45, tickfont=dict(size=10), title="Neighbourhood"),
                 yaxis=dict(title="Total Washrooms"),
-                height=260,
+                height=350,
                 width=1200,
                 shapes=[dict(
                     type='line', x0=0, x1=1, xref='paper',
@@ -473,6 +459,8 @@ def server(input, output, session):
     @reactive.effect
     @reactive.event(input.reset_all)
     def _reset_filters():
+        # Reset selected line in table
+        selected_park_name.set(None)
         # Reset search box
         ui.update_text("search", value="")
         # Reset neighbourhoods (default = Downtown)
@@ -529,27 +517,6 @@ def server(input, output, session):
             name = df.iloc[idx[0]]['Name']
             selected_park_name.set(name)
 
-    # AI rendered washroom pie chart
-    @render_widget
-    def ai_washroom_pie():
-        df = ai_filtered_data()
-        
-        if df.empty:
-            tmp = pd.DataFrame({"Category": ["No results"], "Count": [1]})
-            return px.pie(tmp, names="Category", values="Count")
-        
-        counts = df["Washrooms"].value_counts(dropna=False).reset_index()
-        counts.columns = ["Washrooms", "Count"]
-        counts["Washrooms"] = counts["Washrooms"].map({"Y": "Yes", "N": "No"}).fillna("Unknown")
-
-        return px.pie(
-            counts,
-            names="Washrooms",
-            values="Count",
-            color="Washrooms",
-            color_discrete_map={"Yes": "darkgreen", "No": "lightgreen", "Unknown": "gray"}
-        )
-
     # AI rendered map
     @render.ui
     def ai_park_map():
@@ -584,6 +551,7 @@ def server(input, output, session):
             parks.filter(_.Washrooms == "Y")
             .group_by("NeighbourhoodName")
             .agg(Count=_.count())
+            .order_by(_.Count.desc())
             .execute()
         )
 
