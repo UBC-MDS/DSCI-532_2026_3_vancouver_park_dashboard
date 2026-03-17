@@ -1,1 +1,5 @@
+<<<<<<< bar-plot-interactivity
 *.env
+=======
+.env
+>>>>>>> dev

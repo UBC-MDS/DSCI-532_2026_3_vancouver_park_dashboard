@@ -10,17 +10,48 @@ from folium import Popup
 import chatlas
 from chatlas import ChatAnthropic
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 import json
 import difflib
+<<<<<<< bar-plot-interactivity
 from plotly.callbacks import Points, InputDeviceState
 import plotly.graph_objects as go
+=======
+import ibis
+from ibis import _
+import duckdb
+>>>>>>> dev
 
+<<<<<<< test
 # read dataframe
-parks_df = pd.read_csv("data/raw/parks.csv", sep=';')
+DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "raw" / "parks.csv"
+parks_df = pd.read_csv(DATA_PATH, sep=';')
+=======
+# load DuckDB connection
+con = ibis.duckdb.connect()
+parks = con.read_parquet("data/processed/parks.parquet")
+>>>>>>> dev
 
 # adding neighbourhood best match for random prompts
-VALID_NEIGHBOURHOODS = sorted(parks_df["NeighbourhoodName"].dropna().unique().tolist())
+VALID_NEIGHBOURHOODS = (
+    parks.select("NeighbourhoodName")
+    .distinct()
+    .execute()['NeighbourhoodName']
+    .dropna()
+    .sort_values()
+    .tolist()
+)
+
+# adding the maximum range of park size to be filtered later
+HECTARE_RANGE = (
+    parks.agg(
+        min_h=_.Hectare.min(),
+        max_h=_.Hectare.max() 
+    ).execute()
+)
+HECTARE_MIN = float(HECTARE_RANGE['min_h'][0])
+HECTARE_MAX = float(HECTARE_RANGE['max_h'][0])
 
 def best_match_neighbourhoods(user_neighs, valid_neighs, cutoff=0.6):
     """
@@ -46,6 +77,30 @@ def best_match_neighbourhoods(user_neighs, valid_neighs, cutoff=0.6):
             seen.add(x)
             out.append(x)
     return out
+
+
+def apply_dashboard_filters(df, search_text="", neighbourhoods=None, size_range=None, facilities=None):
+    filtered_df = df.copy()
+
+    if search_text:
+        filtered_df = filtered_df[
+            filtered_df["Name"].str.contains(str(search_text), case=False, na=False)
+        ]
+
+    if neighbourhoods:
+        filtered_df = filtered_df[filtered_df["NeighbourhoodName"].isin(neighbourhoods)]
+
+    if size_range is not None:
+        min_size, max_size = size_range
+        filtered_df = filtered_df[
+            (filtered_df["Hectare"] >= min_size) &
+            (filtered_df["Hectare"] <= max_size)
+        ]
+
+    for facility in facilities or []:
+        filtered_df = filtered_df[filtered_df[facility] == "Y"]
+
+    return filtered_df
 
 # function to create a folium map with circle markers for each park
 def folium_map(df):
@@ -152,15 +207,15 @@ app_ui = ui.page_navbar(
                 ui.input_selectize(
                     "neighbourhood", 
                     "Neighbourhood",
-                    choices=sorted(parks_df['NeighbourhoodName'].dropna().unique().tolist()),
+                    choices=VALID_NEIGHBOURHOODS,
                     selected="Downtown",
                     multiple=True
                 ),
 
                 # Slider for park size
                 ui.input_slider("size", "Hectare", 
-                                parks_df['Hectare'].min(), parks_df['Hectare'].max(), 
-                                [parks_df['Hectare'].min(), parks_df['Hectare'].max()]),
+                                HECTARE_MIN, HECTARE_MAX, 
+                                [HECTARE_MIN, HECTARE_MAX]),
                 
                 # Checkbox group for facilities
                 ui.input_checkbox_group(
@@ -309,7 +364,13 @@ def server(input, output, session):
     
     # Original Dashboard Reactive Logic
     
+<<<<<<< bar-plot-interactivity
     chat = ui.Chat(id="park_chat")
+=======
+    chat = ui.Chat(id="park_chat") # Moved this here
+    
+    session.on_ended(con.disconnect) # clean up after leaving
+>>>>>>> dev
 
     # Reactive expression to filter the parks data frame based on user inputs
     @reactive.calc
@@ -317,32 +378,40 @@ def server(input, output, session):
         """
         Filter once for all outputs
         """
-        # create a copy of the parks data frame to apply filters on
-        filtered_df = parks_df.copy()
-
+<<<<<<< test
+        return apply_dashboard_filters(
+            parks_df,
+            search_text=input.search(),
+            neighbourhoods=input.neighbourhood(),
+            size_range=input.size(),
+            facilities=input.facilities(),
+        )
+=======
+        
+        expr = parks
+        
         # filters the parks data frame for park name search
         if input.search():
-            filtered_df = filtered_df[filtered_df['Name'].str.contains(input.search(), case=False, na=False)]
-
+            expr = expr.filter(_.Name.ilike(f"%{input.search()}%"))
+            
         # filters the parks data frame for neighbourhood selection
         if input.neighbourhood():
-            filtered_df = filtered_df[filtered_df['NeighbourhoodName'].isin(input.neighbourhood())]
-        
+            expr = expr.filter(_.NeighbourhoodName.isin(input.neighbourhood()))
+            
         # filters the parks data frame whose Hectare size is within slider range
         min_size, max_size = input.size()
-        filtered_df = filtered_df[
-            (filtered_df['Hectare'] >= min_size) &
-            (filtered_df['Hectare'] <= max_size)
-        ]
+        expr = expr.filter((_.Hectare >= min_size) & (_.Hectare <= max_size))
         
         # filters the parks data frame for facilities selection
-        for facility in input.facilities():
-            filtered_df = filtered_df[filtered_df[facility] == 'Y']
+        if input.facilities():
+            for facility in input.facilities():
+                expr = expr.filter(_[facility] == "Y")
 
-        return filtered_df
+        return expr
+>>>>>>> dev
 
     # Added filtered df for Ai output
-    ai_filtered_df = reactive.Value(parks_df)
+    ai_filtered_df = reactive.Value(parks.execute())
     @reactive.calc
     def ai_filtered():
         return ai_filtered_df()
@@ -350,7 +419,7 @@ def server(input, output, session):
     
     @render.ui
     def table_out():
-        df = filtered()
+        df = filtered().execute()
         
         display_df = pd.DataFrame({
             'Name': df['Name'],
@@ -367,7 +436,7 @@ def server(input, output, session):
         
     @render.ui
     def park_map():
-        df = filtered()
+        df = filtered().execute()
         html_str = folium_map(df)
         
         return ui.tags.iframe(
@@ -377,15 +446,28 @@ def server(input, output, session):
         
     @render.text
     def park_count():
-        return f"Park Count: {len(filtered())}"
+        return f"Park Count: {filtered().count().execute()}"
     
     @render_widget
     def washroom_chart():
         df = filtered()
         
         # calculate total number of washrooms per neighbourhood across ALL parks
+<<<<<<< bar-plot-interactivity
         all_counts = parks_df[parks_df['Washrooms'] == 'Y'].groupby('NeighbourhoodName').size().reset_index(name='Count')
         all_counts = all_counts.sort_values(by='Count', ascending=False) # sort in descending order
+=======
+        all_counts = (
+            parks.filter(_.Washrooms == "Y")
+            .group_by("NeighbourhoodName")
+            .size()
+            .execute()
+        )
+        
+        all_counts = all_counts.rename(columns={
+            "CountStar()": "Count"
+        })
+>>>>>>> dev
     
         # extract selected neighbourhoods from the drop-down input
         selected = list(input.neighbourhood())
@@ -443,7 +525,7 @@ def server(input, output, session):
         # Reset slider to full range
         ui.update_slider(
             "size",
-            value=[parks_df['Hectare'].min(), parks_df['Hectare'].max()]
+            value=[HECTARE_MIN, HECTARE_MAX]
         )
         # Reset facilities (none selected)
         ui.update_checkbox_group(
@@ -492,34 +574,36 @@ def server(input, output, session):
                 await chat.append_message({"role": "assistant", "content": f"⚠️ AI did not return valid JSON.\nGot:\n{raw}"})
                 return
 
-            new_df = parks_df.copy()
+            expr = parks
 
             # 1) Name contains (case-insensitive)
             name_contains = spec.get("name_contains")
             if name_contains:
-                new_df = new_df[new_df["Name"].str.contains(str(name_contains), case=False, na=False)]
+                expr = expr.filter(_.Name.ilike(f"%{name_contains}%"))
 
             # 2) Neighbourhoods (best-match)
             user_neighs = spec.get("neighbourhoods") or []
             matched_neighs = best_match_neighbourhoods(user_neighs, VALID_NEIGHBOURHOODS, cutoff=0.6)
             if matched_neighs:
-                new_df = new_df[new_df["NeighbourhoodName"].isin(matched_neighs)]
+                expr = expr.filter(_.NeighbourhoodName.isin(matched_neighs))
 
             # 3) Hectare range
             hmin = spec.get("hectare_min")
             hmax = spec.get("hectare_max")
             if hmin is not None:
-                new_df = new_df[new_df["Hectare"] >= float(hmin)]
+                expr = expr.filter(_.Hectare >= float(hmin))
             if hmax is not None:
-                new_df = new_df[new_df["Hectare"] <= float(hmax)]
+                expr = expr.filter(_.Hectare <= float(hmax))
 
             # 4) Flags (Y/N)
             flags = spec.get("flags") or {}
             for col in ["Washrooms", "Facilities", "SpecialFeatures"]:
                 val = flags.get(col)
                 if val in ("Y", "N"):
-                    new_df = new_df[new_df[col] == val]
-
+                    expr = expr.filter(_[col] == val)
+                    
+            new_df = expr.execute()
+            
             ai_filtered_df.set(new_df)
 
             # Tell user what we matched
@@ -609,10 +693,10 @@ def server(input, output, session):
 
         # calculate total washrooms per neighbourhood across ALL parks (same as washroom_chart)
         all_counts = (
-            parks_df[parks_df["Washrooms"] == "Y"]
-            .groupby("NeighbourhoodName")
-            .size()
-            .reset_index(name="Count")
+            parks.filter(_.Washrooms == "Y")
+            .group_by("NeighbourhoodName")
+            .agg(Count=_.count())
+            .execute()
         )
 
         if all_counts.empty:
