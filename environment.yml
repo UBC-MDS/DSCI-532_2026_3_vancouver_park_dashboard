@@ -13,11 +13,7 @@ dependencies:
   - ipyleaflet
   - anywidget
   - folium
-  - python-dotenv
-  - libsass
   - pytest
   - pip
   - pip:
-      - chatlas
-      - anthropic
-      - shiny[theme]
+      - -r requirements.txt
