@@ -2,18 +2,31 @@ name: park
 channels:
   - conda-forge
 dependencies:
-  - numpy
-  - python
-  - pandas
-  - jupyterlab
-  - matplotlib
-  - shiny
-  - shinywidgets
-  - plotly
-  - ipyleaflet
-  - anywidget
-  - folium
-  - pytest
+  - python=3.12
   - pip
+  - jupyterlab
+  - anywidget
   - pip:
       - -r requirements.txt
+
+
+
+# name: park
+# channels:
+#   - conda-forge
+# dependencies:
+#   - numpy
+#   - python
+#   - pandas
+#   - jupyterlab
+#   - matplotlib
+#   - shiny
+#   - shinywidgets
+#   - plotly
+#   - ipyleaflet
+#   - anywidget
+#   - folium
+#   - pytest
+#   - pip
+#   - pip:
+#       - -r requirements.txt
