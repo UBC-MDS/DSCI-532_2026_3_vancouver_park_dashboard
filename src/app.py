@@ -14,24 +14,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 import json
 import difflib
-<<<<<<< bar-plot-interactivity
 from plotly.callbacks import Points, InputDeviceState
 import plotly.graph_objects as go
-=======
 import ibis
 from ibis import _
 import duckdb
->>>>>>> dev
 
-<<<<<<< test
-# read dataframe
-DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "raw" / "parks.csv"
-parks_df = pd.read_csv(DATA_PATH, sep=';')
-=======
 # load DuckDB connection
+DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "parks.parquet"
 con = ibis.duckdb.connect()
 parks = con.read_parquet("data/processed/parks.parquet")
->>>>>>> dev
 
 # adding neighbourhood best match for random prompts
 VALID_NEIGHBOURHOODS = (
