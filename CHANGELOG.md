@@ -40,6 +40,15 @@ We chose the component click event interaction option and implemented an interac
 
 ### Reflection
 
+### Changed
+
+- Switched from lazy loading to DuckDB + ibis (PR: #94)
+- Changed the layout of the dashboard by putting the map output on the top in both the Standard Explorer tab and AI tab (PR: #122)
+
+### Fixed
+
+
+
 ## [0.3.0] - 2026-03-08
 
 ### Added
