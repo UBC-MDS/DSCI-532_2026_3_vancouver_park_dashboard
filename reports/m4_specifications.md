@@ -1,0 +1,87 @@
+<h1 align="center">
+
+App Specification: The Vancouver Park Dashboard
+
+</h1>
+
+**2.1 Updated Job Stories**
+
+| \# | Job Story | Status | Notes |
+|:-----------------|:-----------------|:-----------------|:-----------------|
+| **1** | When I already have a target park to go, I want to search its name on the map and know its related details, so I can plan my trip to this specific park. | ✅ Implemented |  The target park can be searched in the search bar `Search Parks`. |
+| **2** | When I have a target neighborhood in my mind, I want to search the available parks in this neighborhood, so I can plan my visit to the selected neighborhood. | ✅ Implemented |  The target neighborhood can be entered in the drop-down list `Neighbourhood`. |
+| **3** | When I am looking for a park that fits my needs, I want to filter parks by amenities such as washrooms, accessibility, facilities, and special features, so I can quickly find suitable options. | ✅ Implemented | Filters for "Facilities," "Washrooms," and "Special Features" are active in the sidebar. A pie chart dynamically updates to show washroom availability for the filtered set. |
+| **4** | When I am planning a small meetup or birthday, I want to compare parks by size, so I can choose a park that has enough space. | ✅ Implemented | The **Hectare slider** allows users to filter parks by size, and the map popup shows each park’s size in hectares. This supports comparing parks based on space, although a direct size-sorting feature in the table is not explicitly coded beyond standard table display. |
+| **5** | When I am in a new area or unfamiliar neighbourhood, I want to explore filtered parks on a map and/or as a list with clear details, so I can decide quickly without switching between multiple tools. | ✅ Implemented | Integrated `folium` for a full-screen interactive map. Popups provide name, neighbourhood, and size details without requiring a separate page. |
+
+------------------------------------------------------------------------
+
+**2.2 Component Inventory**
+
+| ID | Type | Shiny widget / renderer | Depends on | Job story |
+|----|------|--------------------------|------------|-----------|
+| `search` | Input | `ui.input_text()` | NA | #1 |
+| `neighbourhood` | Input | `ui.input_selectize()` | NA, `washroom_chart` | #2 |
+| `size` | Input | `ui.input_slider()` | NA | #4 |
+| `facilities` | Input | `ui.input_checkbox_group()` | NA | #3 |
+| `reset_all` | Input | `ui.input_action_button()` | NA | #1, #2, #3, #4 |
+| `filtered` | Reactive calc | `@reactive.calc` | `search`, `neighbourhood`, `size`, `facilities` | #1, #2, #3, #4 |
+| `selected_park_name` | Reactive value | `reactive.Value` | `table_out`, `reset_all` | #1, #5 |
+| `final_filtered` | Reactive calc | `@reactive.calc` | `filtered`, `selected_park_name` | #1, #5 |
+| `table_out` | Output | `@render.data_frame` | `filtered` | #1, #2, #3, #4, #5 |
+| `washroom_chart` | Output / Input | `@render_widget` | `filtered`, `selected_park_name` | #2, #3 |
+| `park_map` | Output | `@render.ui` | `final_filtered` | #1, #2, #4, #5 |
+| `park_count` | Output (top right of map) | `@render.text` | `final_filtered` | #5 |
+| `park_chat_ui` | Input/Output | `QueryChat` | NA | #1, #2, #3, #4, #5 |
+| `ai_filtered_data` | Reactive calc | `@reactive.calc` | `park_chat_ui` | #1, #2, #3, #4, #5 |
+| `ai_table_out` | Output | `@render.data_frame` | `ai_filtered_data` | #1, #2, #3, #4, #5 |
+| `ai_bar_chart` | Output | `@render_widget` | `ai_filtered_data` | #2, #3 |
+| `ai_park_map` | Output | `@render.ui` | `ai_filtered_data` | #1, #2, #4, #5 |
+| `ai_park_count` | Output (top right of map) | `@render.text` | `ai_filtered_data` | #5 |
+| `download_ai_data` | Output | `@render.download` | `ai_filtered_data` | #1, #2, #3, #4, #5 |
+
+------------------------------------------------------------------------
+
+**2.3 Reactivity Diagram**
+
+```mermaid
+flowchart TD
+  A[/search/] --> F{{filtered}}
+  B[/neighbourhood/] --> F
+  C[/size/] --> F
+  D[/facilities/] --> F
+  R[/reset_all/] --> F
+  R --> S
+
+  F --> P1([table_out])
+  F --> P2([washroom_chart])
+  F --> FF{{final_filtered}}
+
+  P1 -- row click --> S{{selected_park_name}}
+  P2 -- on_click --> B
+
+  S --> FF
+  S --> P2
+
+  FF --> P3([park_map])
+  FF --> P4([park_count])
+
+  Q[/park_chat_ui/] --> AI{{ai_filtered_data}}
+  AI --> AP1([ai_table_out])
+  AI --> AP2([ai_bar_chart])
+  AI --> AP3([ai_park_map])
+  AI --> AP4([ai_park_count])
+  AI --> AP5([download_ai_data])
+```
+------------------------------------------------------------------------
+
+**2.4 Calculation Details**
+
+There are three `@reactive.calc` elements and one `reactive.Value` in the diagram.
+
+- `filtered` depends on: `search`, `neighbourhood`, `size`, `facilities`. It filters rows in the parks dataset to match the selected neighbourhood, size range, facility checkboxes, and name search string. It is consumed by: `table_out`, `washroom_chart`, and `final_filtered`. It is reset by `reset_all`.
+- `selected_park_name` is a `reactive.Value` set when a user clicks a row in `table_out`, and cleared by `reset_all`. It is consumed by `final_filtered` and `washroom_chart`.
+- `final_filtered` depends on: `filtered` and `selected_park_name`. It further narrows the filtered results to a single park when one is selected via row click in table_out. It is consumed by: `park_map` and `park_count`.
+- `ai_filtered_data` depends on: `park_chat_ui` (the QueryChat server value). It coerces the AI-filtered result into a pandas DataFrame. It is consumed by: `ai_table_out`, `ai_bar_chart`, `ai_park_map`, `ai_park_count`, `download_ai_data`.
+
+------------------------------------------------------------------------
