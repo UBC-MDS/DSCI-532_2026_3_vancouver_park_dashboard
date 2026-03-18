@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Interactive bar chart output with click-to-filter functionality for washroom distribution visualization. (#92)
 - Automatic map zoom feature that focuses on selected parks when filters are applied. (#121)
+- Add unit testing to project (#98)
 
 ### Changed
 - Changed functionality of "reset all filters" button to include resetting the selections made on the bar chart and table of data. (#124)
@@ -21,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed table and bar chart layout issues in the Standard Explorer to properly fit within UI cards. (#124)
 - Removed unused AI pie chart code. (#124)
 - **Feedback prioritization issue link:** #97
-
+- fix Querychat bug on not showing query code (#102)
 ### Known Issues
 
 ### Release Highlight: Interactive Bar Chart for Facility Discovery
