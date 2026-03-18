@@ -16,28 +16,32 @@ from ibis import _
 
 # load DuckDB connection
 DATA_PATH = Path(__file__).resolve().parents[1] / "data" / "processed" / "parks.parquet"
-con = ibis.duckdb.connect()
-parks = con.read_parquet(str(DATA_PATH))
+_ui_df = pd.read_parquet(DATA_PATH)
+
+# con = ibis.duckdb.connect()
+# parks = con.read_parquet(str(DATA_PATH))
 
 # adding neighbourhood best match for random prompts
 VALID_NEIGHBOURHOODS = (
-    parks.select("NeighbourhoodName")
-    .distinct()
-    .execute()['NeighbourhoodName']
+    _ui_df["NeighbourhoodName"]
     .dropna()
     .sort_values()
+    .unique()
     .tolist()
 )
 
-# adding the maximum range of park size to be filtered later
-HECTARE_RANGE = (
-    parks.agg(
-        min_h=_.Hectare.min(),
-        max_h=_.Hectare.max() 
-    ).execute()
-)
-HECTARE_MIN = float(HECTARE_RANGE['min_h'][0])
-HECTARE_MAX = float(HECTARE_RANGE['max_h'][0])
+HECTARE_MIN = float(_ui_df["Hectare"].min())
+HECTARE_MAX = float(_ui_df["Hectare"].max())
+
+# # adding the maximum range of park size to be filtered later
+# HECTARE_RANGE = (
+#     parks.agg(
+#         min_h=_.Hectare.min(),
+#         max_h=_.Hectare.max() 
+#     ).execute()
+# )
+# HECTARE_MIN = float(HECTARE_RANGE['min_h'][0])
+# HECTARE_MAX = float(HECTARE_RANGE['max_h'][0])
 
 def apply_dashboard_filters(expr, search_text="", neighbourhoods=None, size_range=None, facilities=None):
     if search_text:
@@ -121,7 +125,7 @@ if not api_key:
 
 anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-0")
 
-parks_df_full = parks.execute()
+# parks_df_full = parks.execute()
 
 # chat agent initialization with system prompt to guide user input parsing for filtering the parks dataframe
 chat_agent = ChatAnthropic(
@@ -151,18 +155,27 @@ chat_agent = ChatAnthropic(
         """,
 )
 
-# Initialize QueryChat with the full parks DataFrame and the chat agent
 qc = QueryChat(
-    parks_df_full,
+    pd.DataFrame({"place_hoder": []}),  # empty placeholder
     "parks",
     id="park_chat_ui",
-    greeting=(
-        "Hi! Ask me about Vancouver parks and I can filter the dashboard data for you. "
-        "For example: 'parks in Kitsilano larger than 2 hectares with washrooms'."
-    ),
+    greeting="",
     client=chat_agent,
     tools=("update", "query"),
 )
+
+# Initialize QueryChat with the full parks DataFrame and the chat agent
+# qc = QueryChat(
+#     parks_df_full,
+#     "parks",
+#     id="park_chat_ui",
+#     greeting=(
+#         "Hi! Ask me about Vancouver parks and I can filter the dashboard data for you. "
+#         "For example: 'parks in Kitsilano larger than 2 hectares with washrooms'."
+#     ),
+#     client=chat_agent,
+#     tools=("update", "query"),
+# )
 
 app_ui = ui.page_navbar(
 ui.nav_panel(
@@ -327,8 +340,44 @@ ui.nav_panel(
 
 
 def server(input, output, session):
+    con = ibis.duckdb.connect()
+    parks = con.read_parquet(str(DATA_PATH))
+    
     # Original Dashboard Reactive Logic
-    session.on_ended(con.disconnect) # clean up after leaving
+    session.on_ended(lambda: con.disconnect()) # clean up after leaving
+    
+#     VALID_NEIGHBOURHOODS = (
+#     parks.select("NeighbourhoodName")
+#     .distinct()
+#     .execute()['NeighbourhoodName']
+#     .dropna()
+#     .sort_values()
+#     .tolist()
+#     )
+
+# # adding the maximum range of park size to be filtered later
+#     HECTARE_RANGE = (
+#         parks.agg(
+#             min_h=_.Hectare.min(),
+#             max_h=_.Hectare.max() 
+#         ).execute()
+#     )
+#     HECTARE_MIN = float(HECTARE_RANGE['min_h'][0])
+#     HECTARE_MAX = float(HECTARE_RANGE['max_h'][0])
+    
+    parks_df_full = parks.execute()
+    
+    qc = QueryChat(
+        parks_df_full,
+        "parks",
+        id="park_chat_ui",
+        greeting=(
+            "Hi! Ask me about Vancouver parks and I can filter the dashboard data for you. "
+            "For example: 'parks in Kitsilano larger than 2 hectares with washrooms'."
+        ),
+        client=chat_agent,
+        tools=("update", "query"),
+    )
 
     # Reactive expression to filter the parks data frame based on user inputs
     @reactive.calc
