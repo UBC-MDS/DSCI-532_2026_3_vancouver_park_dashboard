@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-17
+
+### Added
+- Interactive bar chart output with click-to-filter functionality for washroom distribution visualization. (#92)
+- Automatic map zoom feature that focuses on selected parks when filters are applied. (#121)
+- Interactive output table, where clicking any row would re-render the outputs again based on selection. (PR: #119)
+- Add unit testing to project (#98)
+
+### Changed
+- Changed functionality of "reset all filters" button to include resetting the selections made on the bar chart and table of data. (#124)
+- Improved Standard Explorer & AI bar chart presentation with descending order sorting. (#124)
+- Switched from lazy loading to DuckDB + ibis (PR: #94)
+- Changed the layout of the dashboard by putting the map output on the top in both the Standard Explorer tab and AI tab (PR: #122)
+- Made the Bar Plot to only reload when the neighbour filter is used but not for other not dependent filters. (PR: #119)
+- Cleaned the environment and requirement file, reducing overlap (PR: #114)
+
+### Fixed
+- Fixed table and bar chart layout issues in the Standard Explorer to properly fit within UI cards. (#124)
+- Removed unused AI pie chart code. (#124)
+- Import codes, washroom code, and filter function codes to resolve merge conflicts of DuckDB implementation (PR: #100)
+- fix Querychat bug on not showing query code (#102)
+
+**Feedback prioritization issue link:** #97
+
+### Known Issues
+
+### Release Highlight: Interactive Bar Chart for Facility Discovery
+
+The dashboard now features an interactive bar chart visualization where users can directly click on bars representing washroom availability by neighborhood. This click-to-filter functionality seamlessly integrates with the existing filter system, allowing neighborhoods to be added to the active filter selection through intuitive chart interaction. This enhancement improves the discoverability of parks with specific facilities and provides an alternative interaction pattern to traditional dropdown menus.
+
+- **Option chosen:** Component click event interaction
+- **PR:** #92
+- **Why this option over the others:** We chose the component click event interaction option and implemented an interactive bar chart and table row selection. We chose to implement these over other options because they deliver the most direct value to our target user in the Standard Explorer tab. Together, these two interactions form a cohesive workflow: users can click a bar in the washroom chart to filter by neighbourhood, then click a specific park in the table to zoom the map to its exact location. Option A (QueryChat Customization) would improve the AI tab experience, but based on our user needs, we think that park discovery based on amenities is better suited to direct visual exploration than natural language querying — users looking for "a park with washrooms nearby" are more likely to scan a chart than type a question. Options B (Persistent LLM Logging) and C (Custom RAG Knowledge Base) both require significant backend infrastructure and domain knowledge curation respectively, with benefits that are indirect and harder to validate within the scope of this milestone. We believe that both interactions that we implemented help close a genuine UX gap. Previously, the washroom chart was read-only and the map always showed all filtered parks at once, meaning users had to mentally cross-reference chart and map to find a specific park. The new interactions collapse that multi-step process into a single fluid workflow and allows the user to better explore the relationship between park amenities and locations.
+
+### Collaboration
+
+- **CONTRIBUTING.md:** Updates pending for M4 retrospective and collaboration norms.
+- **M3 retrospective:** Focus shifted to refining user interactions and improving component layouts based on M3 feedback.
+- **M4:** Emphasis on enhancing interactivity, optimizing layouts, and implementing automatic map behavior for better user experience.
+
+### Reflection
+Reflection
+The dashboard excels at providing direct, intuitive exploration of Vancouver parks through layered filtering and visual feedback. The interactive bar chart where users click neighborhoods to filter parks creates a discovery workflow that integrates seamlessly with existing controls (dropdown, slider). By repositioning the map to the top, we've clarified the information hierarchy: the map shows the results, while the charts and tables guide the search. The addition of the automatic zoom-on-select behavior reduces cognitive load, allowing users to explore relationships between facilities, locations, and park details without toggling between views.
+
+Current limitations: Our washroom bar chart aggregates binary values of whether or not a park has a washroom or not. This masks variation within areas and doesn't illustrate the total number of washrooms in a neighbourhood, but rather the number of parks that have at least one washroom. The LLM chat, while functional, remains a secondary discovery tool compared to direct visual filtering; without persistent logging or knowledge base customization (options B and C), it struggles to build context across queries.
+
+Intentional deviations from DSCI 531 best practices: We prioritized interactive discovery over traditional dashboard design (see Release Highlight). Rather than a dashboard-as-report that presents pre-computed summaries, we built a tool for exploration, where user input directly shapes the map and chart. This shifts the design from "here are the key insights" to "here's your data; find your parks." This is intentional and aligns with our user personas (exploratory search, local planners) but means the dashboard requires engagement rather than supporting passive reading.
+
+Feedback prioritization and trade-offs: We focused M4 on three critical items: clarifying the AI chat interface (one conversation thread, no sidebar duplication), repositioning the map for visual prominence, and making the outputs interactive (bar chart and table of data clickable). We deprioritized extending the washroom metric (e.g., washrooms-per-park) because it would require additional datasets and the current neighborhood view still allows users to understand the general distribution of washrooms across neighbourhoods. The full rationale is in issue #97: we chose visual interactivity over backend complexity, believing park discovery via clicking is more valuable than deeper facility metrics. We also decided not to prioritize feedback that was about visual aesthetics like the colours used in the dashboard as we felt this was more a matter of personal preference.
+
+Most useful guidance: The M3 collaboration feedback (issue #57) helped reshape how we approached M4. We made specification updates before code (PR reviewing the m4_specifications before implementation), required review comments on all PRs above modest size, and rotated responsibilities so each team member touched multiple components. The lectures on geospatial visualization and LLMs were the most helpful in building out our dashboard.
+
+**Note: this entry was prepared with the assistance of GitHub Copilot.**
+
 ## [0.3.0] - 2026-03-08
 
 ### Added
