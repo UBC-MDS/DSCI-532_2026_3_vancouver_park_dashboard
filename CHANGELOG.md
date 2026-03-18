@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Interactive bar chart output with click-to-filter functionality for washroom distribution visualization. (#92)
 - Automatic map zoom feature that focuses on selected parks when filters are applied. (#121)
+- Interactive output table, where clicking any row would re-render the outputs again based on selection. (PR: #119)
 - Add unit testing to project (#98)
 
 ### Changed
@@ -17,11 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved Standard Explorer & AI bar chart presentation with descending order sorting. (#124)
 - Switched from lazy loading to DuckDB + ibis (PR: #94)
 - Changed the layout of the dashboard by putting the map output on the top in both the Standard Explorer tab and AI tab (PR: #122)
+- Made the Bar Plot to only reload when the neighbour filter is used but not for other not dependent filters. (PR: #119)
+- Cleaned the environment and requirement file, reducing overlap (PR: #114)
 
 ### Fixed
 - Fixed table and bar chart layout issues in the Standard Explorer to properly fit within UI cards. (#124)
 - Removed unused AI pie chart code. (#124)
+- Import codes, washroom code, and filter function codes to resolve merge conflicts of DuckDB implementation (PR: #100)
 - fix Querychat bug on not showing query code (#102)
+
 **Feedback prioritization issue link:** #97
 
 ### Known Issues
