@@ -21,8 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed table and bar chart layout issues in the Standard Explorer to properly fit within UI cards. (#124)
 - Removed unused AI pie chart code. (#124)
-- **Feedback prioritization issue link:** #97
 - fix Querychat bug on not showing query code (#102)
+**Feedback prioritization issue link:** #97
+
 ### Known Issues
 
 ### Release Highlight: Interactive Bar Chart for Facility Discovery
@@ -50,6 +51,8 @@ Intentional deviations from DSCI 531 best practices: We prioritized interactive 
 Feedback prioritization and trade-offs: We focused M4 on three critical items: clarifying the AI chat interface (one conversation thread, no sidebar duplication), repositioning the map for visual prominence, and making the outputs interactive (bar chart and table of data clickable). We deprioritized extending the washroom metric (e.g., washrooms-per-park) because it would require additional datasets and the current neighborhood view still allows users to understand the general distribution of washrooms across neighbourhoods. The full rationale is in issue #97: we chose visual interactivity over backend complexity, believing park discovery via clicking is more valuable than deeper facility metrics. We also decided not to prioritize feedback that was about visual aesthetics like the colours used in the dashboard as we felt this was more a matter of personal preference.
 
 Most useful guidance: The M3 collaboration feedback (issue #57) helped reshape how we approached M4. We made specification updates before code (PR reviewing the m4_specifications before implementation), required review comments on all PRs above modest size, and rotated responsibilities so each team member touched multiple components. The lectures on geospatial visualization and LLMs were the most helpful in building out our dashboard.
+
+**Note: this entry was prepared with the assistance of GitHub Copilot.**
 
 ## [0.3.0] - 2026-03-08
 
